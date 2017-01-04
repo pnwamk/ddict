@@ -51,7 +51,7 @@
 (define-syntax-rule (in? elems)
   (λ (x) (hash-has-key? elems x)))
 
-(define-syntax-rule (need-to-flush? elems del)
+(define-syntax-rule (too-dirty? elems del)
   (> del (* .5 (hash-count elems))))
 
 ;; - - - - - -
@@ -385,7 +385,7 @@
 (define/dd (ddict-remove [(iddict elems del seq) dd] key)
   (let* ([elems (hash-remove elems key)]
          [del (add1 del)])
-    (if (need-to-flush? elems del)
+    (if (too-dirty? elems del)
         (immutable-ddict elems 0 (filter (in? elems) seq))
         (immutable-ddict elems del seq))))
 ;;
@@ -395,7 +395,7 @@
   (hash-remove! elems key)
   (let ([del (add1 del)])
     (set-ddict-del! dd del)
-    (when (need-to-flush? elems del)
+    (when (too-dirty? elems del)
       (set-ddict-seq! (filter (in? elems) seq)))))
 
 ;;
