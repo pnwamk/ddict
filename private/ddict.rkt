@@ -41,7 +41,10 @@
          ddict-count
          ddict-keys
          ddict-values
-         ddict->list)
+         ddict->list
+         in-ddict
+         ddict-map
+         ddict-for-each)
 
 
 
@@ -60,7 +63,7 @@
       (if (immutable-ddict? dd)
           (write-string "#<ddict:" port)
           (write-string "#<mutable-ddict:" port))
-      (if (immutable-ddict?)
+      (if (immutable-ddict? dd)
           (write-string "(ddict" port)
           (write-string "(mutable-ddict" port)))
   (let ([l (filter (in? elems) (ddict-seq dd))]
@@ -168,8 +171,8 @@
           (let ([seq (if (hash-has-key? elems key)
                          seq
                          (cons key seq))])
+            (hash-set! elems key (cadr args))
             (loop (cddr args)
-                  (hash-set! elems key (cadr args))
                   seq))]))]))
 
 (define mutable-ddict* (mutable-ddict/template mutable-ddict
@@ -229,43 +232,50 @@
      (memq (syntax->datum #'ddict-spec) '(ddict iddict mddict))
      (with-syntax
          ;; bind all non-wildcard fields
-         ([ddict-pred (case (syntax->datum #'ddict-spec)
-                        [(ddict) #'ddict?]
-                        [(iddict) #'immutable-ddict?]
-                        [(mddict) #'mutable-ddict?])]
-          [bindings (append
-                     (if (eq? '_ (syntax->datum #'elems))
-                         (list)
-                         (list #'[elems (unsafe-ddict-elems dd)]))
-                     (if (eq? '_ (syntax->datum #'del))
-                         (list)
-                         (list #'[del (unsafe-ddict-del dd)]))
-                     (if (eq? '_ (syntax->datum #'elems))
-                         (list)
-                         (list #'[seq (unsafe-ddict-seq dd)])))]
-          ;; build a reasonable error message if not given a ddict
-          ;; as the 1st argument
-          [error-expr
-           (if (identifier? #'other-args)
-               ;; rest args
-               (syntax/loc stx
-                 (raise-argument-error
-                  (quote name) "ddict?" 0 dd other-args))
-               ;; no rest args
-               (quasisyntax/loc stx
-                 (raise-argument-error
-                  (quote name) "ddict?" 0 dd
-                  ;; grab argument ids to report as other args
-                  . #,(for/fold ([others #'()])
-                                ([arg (in-list (reverse (syntax->list #'other-args)))])
-                        (syntax-case arg ()
-                          [[id def-val] (identifier? #'id) #`(id . #,others)]
-                          [id (identifier? #'id) #`(id . #,others)])))))])
-       #'(define (name dd . other-args)
-           (cond
-             [(ddict? dd)
-              (let bindings . body)]
-             [else error-expr])))]))
+         ([ddict-pred
+           (case (syntax->datum #'ddict-spec)
+             [(ddict) #'ddict?]
+             [(iddict) #'immutable-ddict?]
+             [(mddict) #'mutable-ddict?])]
+          [ddict-pred-str
+           (case (syntax->datum #'ddict-spec)
+             [(ddict) #'"ddict?"]
+             [(iddict) #'"immutable-ddict?"]
+             [(mddict) #'"mutable-ddict?"])])
+       (with-syntax
+           ([bindings (append
+                       (if (eq? '_ (syntax->datum #'elems))
+                           (list)
+                           (list #'[elems (unsafe-ddict-elems dd)]))
+                       (if (eq? '_ (syntax->datum #'del))
+                           (list)
+                           (list #'[del (unsafe-ddict-del dd)]))
+                       (if (eq? '_ (syntax->datum #'elems))
+                           (list)
+                           (list #'[seq (unsafe-ddict-seq dd)])))]
+            ;; build a reasonable error message if not given a ddict
+            ;; as the 1st argument
+            [error-expr
+             (if (identifier? #'other-args)
+                 ;; rest args
+                 (syntax/loc stx
+                   (raise-argument-error
+                    (quote name) ddict-pred-str 0 dd other-args))
+                 ;; no rest args
+                 (quasisyntax/loc stx
+                   (raise-argument-error
+                    (quote name) ddict-pred-str 0 dd
+                    ;; grab argument ids to report as other args
+                    . #,(for/fold ([others #'()])
+                                  ([arg (in-list (reverse (syntax->list #'other-args)))])
+                          (syntax-case arg ()
+                            [[id def-val] (identifier? #'id) #`(id . #,others)]
+                            [id (identifier? #'id) #`(id . #,others)])))))])
+         #'(define (name dd . other-args)
+             (cond
+               [(ddict-pred dd)
+                (let bindings . body)]
+               [else error-expr]))))]))
 
 
 ;;
@@ -498,3 +508,98 @@
      (for/list ([key (in-list seq)]
                 #:when (hash-has-key? elems key))
        (cons key (hash-ref elems key)))]))
+
+(define/dd (ddict-map [(ddict elems del seq) dd] f)
+  (cond
+    [(zero? del)
+     (for*/list ([key (in-list seq)]
+                 [val (in-value (hash-ref elems key))])
+       (f key val))]
+    [else
+     (for*/list ([key (in-list seq)]
+                 #:when (hash-has-key? elems key)
+                 [val (in-value (hash-ref elems key))])
+       (f key val))]))
+
+(define/dd (ddict-for-each [(ddict elems del seq) dd] f)
+  (cond
+    [(zero? del)
+     (for* ([key (in-list seq)]
+            [val (in-value (hash-ref elems key))])
+       (f key val))]
+    [else
+     (for* ([key (in-list seq)]
+            #:when (hash-has-key? elems key)
+            [val (in-value (hash-ref elems key))])
+       (f key val))]))
+
+
+(define (next-valid-pos/dirty elems seq)
+  (and
+   (pair? seq)
+   (cond
+     [(hash-has-key? elems (car seq)) seq]
+     [else (next-valid-pos/dirty elems (cdr seq))])))
+
+(define (next-valid-pos/clean elems seq)
+  (and (pair? seq) seq))
+
+(define (in-ddict* dd)
+  (cond
+    [(ddict? dd)
+     (define elems (unsafe-ddict-elems dd))
+     (define clean? (zero? (unsafe-ddict-del dd)))
+     (define seq (unsafe-ddict-seq dd))
+     (define next (if clean?
+                      next-valid-pos/clean
+                      next-valid-pos/dirty))
+     (make-do-sequence
+      (λ ()
+        (values
+         (λ (pos)
+           (let ([key (car pos)])
+             (values key (hash-ref elems key))))
+         (λ (pos) (next elems (cdr pos)))
+         (next elems seq)
+         values
+         #f
+         #f)))]
+    [else
+     (raise-argument-error 'in-ddict "ddict?" dd)]))
+
+
+(define-sequence-syntax in-ddict
+  (λ () #'in-ddict*)
+  (λ (stx)
+    (syntax-case stx ()
+      [[(key val) (_ dd-exp)]
+       #'[(key val)
+          (:do-in
+           ;; ([(outer-id ...) outer-expr] ...)
+           ([(elems seq next)
+             (let ([dd dd-exp])
+               (unless (ddict? dd)
+                 (raise-argument-error 'in-ddict "ddict?" dd))
+               (values (unsafe-ddict-elems dd)
+                       (unsafe-ddict-seq dd)
+                       (if (zero? (unsafe-ddict-del dd))
+                           next-valid-pos/clean
+                           next-valid-pos/dirty)))])
+           ;; outer-check
+           #t
+           ;; ([loop-id loop-expr] ...)
+           ([pos (next elems seq)])
+           ;; pos-guard
+           pos
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key val rst)
+             (values (car pos)
+                     (hash-ref elems (car pos))
+                     (next elems (cdr pos)))])
+           ;; pre-guard
+           #t
+           ;; post-guard
+           #t
+           ;; (loop-arg ...)
+           (rst))]])))
+
