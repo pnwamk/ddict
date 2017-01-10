@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require (only-in racket/unsafe/ops unsafe-struct-ref)
+(require racket/unsafe/ops
          (for-syntax racket/base))
 
 
@@ -35,7 +35,6 @@
          ddict-has-key?
          ddict-empty?
          ddict-clean?
-         ddict-clean
          ddict-clean!
          ddict-empty?
          ddict-count
@@ -43,6 +42,7 @@
          ddict-values
          ddict->list
          in-ddict
+         in-clean-ddict
          ddict-map
          ddict-for-each)
 
@@ -54,9 +54,25 @@
 (define-syntax-rule (too-dirty? elems del)
   (> del (* .5 (hash-count elems))))
 
-;; - - - - - -
+
+;; elems - hash? - the actual dictionary data structure -- used for
+;; both mappings and equality checks
+;; del - exact-nonnegative-integer? - how many deleted items are stored in 'seq'
+;; seq - list? - the sequence of keys in LIFO order
+;; NOTE - fields are mutable, but only the mutable-ddict
+;; functions should mutate the fields, and only for
+;; mutable-ddicts
+(struct ddict (elems [del #:mutable] [seq #:mutable])
+  #:constructor-name do-not-use-me-ever)
+
+;; NOTE: keep these in sync w/ above def!!!!!!
+(define-syntax-rule (unsafe-ddict-elems dd) (unsafe-struct-ref dd 0))
+(define-syntax-rule (unsafe-ddict-del dd)   (unsafe-struct-ref dd 1))
+(define-syntax-rule (unsafe-ddict-seq dd)   (unsafe-struct-ref dd 2))
+
+;; 
 ;; ddict-print
-;; - - - - - -
+;; 
 (define (ddict-print dd port mode)
   (define elems (ddict-elems dd))
   (if mode
@@ -80,44 +96,32 @@
       (write-string ">" port)
       (write-string ")" port)))
 
+;; 
+;; ddict=?
+;; 
+(define (ddict=? dd1 dd2 rec-equal?)
+  (rec-equal? (unsafe-ddict-elems dd1)
+              (unsafe-ddict-elems dd2)))
 
-
-;; elems - hash? - the actual dictionary data structure -- used for
-;; both mappings and equality checks
-;; del - exact-nonnegative-integer? - how many deleted items are stored in 'seq'
-;; seq - list? - the sequence of keys in LIFO order
-;; NOTE - fields are mutable, but only the mutable-ddict
-;; functions should mutate the fields, and only for
-;; mutable-ddicts
-(struct ddict (elems [del #:mutable] [seq #:mutable])
-  #:constructor-name do-not-use-me-ever)
-
-;; NOTE: keep these in sync w/ above def!!!!!!
-(define-syntax-rule (unsafe-ddict-elems dd) (unsafe-struct-ref dd 0))
-(define-syntax-rule (unsafe-ddict-del dd)   (unsafe-struct-ref dd 1))
-(define-syntax-rule (unsafe-ddict-seq dd)   (unsafe-struct-ref dd 2))
+;; 
+;; ddict-hash-code
+;; 
+(define (ddict-hash-code dd rec-hc)
+  (rec-hc (unsafe-ddict-elems dd)))
 
 (struct immutable-ddict ddict ()
   #:methods gen:equal+hash
-  [(define (equal-proc dd1 dd2 rec-equal?)
-     (rec-equal? (unsafe-ddict-elems dd1)
-                 (unsafe-ddict-elems dd2)))
-   (define (hash-proc dd rec-hc)
-     (rec-hc (unsafe-ddict-elems dd)))
-   (define (hash2-proc dd rec-hc)
-     (rec-hc (unsafe-ddict-elems dd)))]
+  [(define equal-proc ddict=?)
+   (define hash-proc ddict-hash-code)
+   (define hash2-proc ddict-hash-code)]
   #:methods gen:custom-write
   [(define write-proc ddict-print)])
 
 (struct mutable-ddict ddict ()
   #:methods gen:equal+hash
-  [(define (equal-proc dd1 dd2 rec-equal?)
-     (rec-equal? (unsafe-ddict-elems dd1)
-                 (unsafe-ddict-elems dd2)))
-   (define (hash-proc dd rec-hc)
-     (rec-hc (unsafe-ddict-elems dd)))
-   (define (hash2-proc dd rec-hc)
-     (rec-hc (unsafe-ddict-elems dd)))]
+  [(define equal-proc ddict=?)
+   (define hash-proc ddict-hash-code)
+   (define hash2-proc ddict-hash-code)]
   #:methods gen:custom-write
   [(define write-proc ddict-print)])
 
@@ -125,6 +129,7 @@
 (define empty-ddicteqv (immutable-ddict #hasheqv() 0 '()))
 (define empty-ddicteq (immutable-ddict #hasheq() 0 '()))
 
+;; constructor template for immutable ddicts
 (define-syntax-rule (ddict/template name empty init-hash)
   (case-lambda
     [() empty]
@@ -152,6 +157,7 @@
 (define ddicteqv* (ddict/template ddicteqv empty-ddicteqv #hasheqv()))
 (define ddicteq*   (ddict/template ddicteq empty-ddicteq #hasheq()))
 
+;; constructor template for mutable ddicts
 (define-syntax-rule (mutable-ddict/template name make-init-hash)
   (case-lambda
     [() (mutable-ddict (make-init-hash) 0 '())]
@@ -183,7 +189,7 @@
                                                  make-hasheq))
 
 
-
+;; "make-" constructor template for immutable ddicts
 (define-syntax-rule (make-ddict/template name init-hash)
   (λ (alist)
     (unless (and (list? alist) (andmap pair? alist))
@@ -207,6 +213,7 @@
 (define make-ddicteqv (make-ddict/template make-ddicteqv #hasheqv()))
 (define make-ddicteq (make-ddict/template make-ddicteq #hasheq()))
 
+;; "make-" constructor template for mutable ddicts
 (define-syntax-rule (make-mutable-ddict/template name make-init-hash)
   (λ (alist)
     (define elems (make-init-hash))
@@ -226,6 +233,11 @@
 (define make-mutable-ddicteqv (make-mutable-ddict/template make-ddicteqv make-hasheqv))
 (define make-mutable-ddicteq (make-mutable-ddict/template make-ddicteq make-hasheq))
 
+;; macro for defining functions whose first argument is a ddict
+;;
+;; This automatically inserts a ddict? check (or immutable/mutable-ddict?)
+;; and raise-argument-error for failure, as well as pattern matching
+;; out the ddict's fields quickly after the check is complete
 (define-syntax (define/dd stx)
   (syntax-case stx ()
     [(_ (name [(ddict-spec elems del seq) dd] . other-args) . body)
@@ -453,23 +465,16 @@
   (hash-count elems))
 
 ;;
-;; ddict-clean
-;;
-(define/dd (ddict-clean [(iddict elems del seq) dd])
-  (if (zero? del)
-      dd
-      (immutable-ddict elems 0 (filter (in? elems) seq))))
-
-;;
 ;; ddict-clean!
 ;;
-(define/dd (ddict-clean! [(mddict elems del seq) dd])
+(define/dd (ddict-clean! [(ddict elems del seq) dd])
   (unless (zero? del)
-    (set-ddict-del! dd 0)
-    (set-ddict-seq! dd (filter (in? elems) seq))))
+    (define seq* (filter (in? elems) seq))
+    (set-ddict-seq! dd seq*)
+    (set-ddict-del! dd 0)))
 
 ;;
-;; ddict-flushed?
+;; ddict-clean?
 ;;
 (define/dd (ddict-clean? [(ddict _ del _) dd])
   (zero? del))
@@ -544,7 +549,7 @@
 (define (next-valid-pos/clean elems seq)
   (and (pair? seq) seq))
 
-(define (in-ddict* dd)
+(define (in-ddict-proc dd)
   (cond
     [(ddict? dd)
      (define elems (unsafe-ddict-elems dd))
@@ -569,7 +574,7 @@
 
 
 (define-sequence-syntax in-ddict
-  (λ () #'in-ddict*)
+  (λ () #'in-ddict-proc)
   (λ (stx)
     (syntax-case stx ()
       [[(key val) (_ dd-exp)]
@@ -593,9 +598,11 @@
            pos
            ;; ([(inner-id ...) inner-expr] ...)
            ([(key val rst)
-             (values (car pos)
-                     (hash-ref elems (car pos))
-                     (next elems (cdr pos)))])
+             (let ([a (car pos)]
+                   [d (cdr pos)])
+               (values a
+                       (hash-ref elems a)
+                       (next elems d)))])
            ;; pre-guard
            #t
            ;; post-guard
@@ -603,3 +610,97 @@
            ;; (loop-arg ...)
            (rst))]])))
 
+(define-sequence-syntax in-clean-ddict
+  (λ () #'in-ddict-proc)
+  (λ (stx)
+    (syntax-case stx ()
+      [[(key val) (_ dd-exp)]
+       #'[(key val)
+          (:do-in
+           ;; ([(outer-id ...) outer-expr] ...)
+           ([(elems seq)
+             (let ([dd dd-exp])
+               (unless (ddict? dd)
+                 (raise-argument-error 'in-ddict "ddict?" dd))
+               (ddict-clean! dd)
+               (values (unsafe-ddict-elems dd)
+                       (unsafe-ddict-seq dd)))])
+           ;; outer-check
+           #t
+           ;; ([loop-id loop-expr] ...)
+           ([pos seq])
+           ;; pos-guard
+           (pair? pos)
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key val rst)
+             (let ([a (car pos)]
+                   [d (cdr pos)])
+               (values a
+                       (hash-ref elems a)
+                       d))])
+           ;; pre-guard
+           #t
+           ;; post-guard
+           #t
+           ;; (loop-arg ...)
+           (rst))]])))
+
+
+
+
+
+
+
+(define h (hash "a" 'a "b" 'b "c" 'c "d" 'd "e" 'e "f" 'f))
+(define dd (ddict* "a" 'a "b" 'b "c" 'c "d" 'd "e" 'e "f" 'f))
+
+(displayln "in-* tests")
+(displayln "hash")
+(time (for ([_ (in-range 1000000)])
+        (for ([(k v) (in-hash h)])
+          (void))))
+
+(collect-garbage)
+(collect-garbage)
+
+(displayln "ddict")
+(time (for ([_ (in-range 1000000)])
+        (for ([(k v) (in-ddict dd)])
+          (void))))
+
+(collect-garbage)
+(collect-garbage)
+
+(displayln "ddict clean")
+(time (for ([_ (in-range 1000000)])
+        (for ([(k v) (in-clean-ddict dd)])
+          (void))))
+
+(displayln "*-set tests")
+(displayln "hash")
+(time (for ([_ (in-range 1000000)])
+        (hash-set h "a" 42)
+        (hash-set h 42 42)))
+
+(collect-garbage)
+(collect-garbage)
+
+(displayln "ddict")
+(time (for ([_ (in-range 1000000)])
+        (ddict-set dd "a" 42)
+        (ddict-set dd 42 42)))
+
+
+(displayln "*-remove tests")
+(displayln "hash")
+(time (for ([_ (in-range 1000000)])
+        (hash-remove h "a")
+        (hash-remove h 42)))
+
+(collect-garbage)
+(collect-garbage)
+
+(displayln "ddict")
+(time (for ([_ (in-range 1000000)])
+        (ddict-remove dd "a")
+        (ddict-remove dd 42)))
