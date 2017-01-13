@@ -84,9 +84,10 @@
 ;; both mappings and equality checks
 ;; del - exact-nonnegative-integer? - how many deleted items are stored in 'seq'
 ;; seq - list? - the sequence of keys in LIFO order
-;; NOTE - fields are mutable, but only the mutable-ddict
-;; functions should mutate the fields, and only for
-;; mutable-ddicts
+;; NOTE - fields are mutable, but this is (theoretically)
+;; unobservable to users, since it only deals w/ how we're
+;; organizing our internal state. The immutable versions
+;; will still have persistent observable behavior for users.
 (struct ddict (elems [del #:mutable] [seq #:mutable])
   #:constructor-name do-not-use-me-ever)
 
