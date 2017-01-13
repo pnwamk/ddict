@@ -1,6 +1,8 @@
 #lang racket/base
 
-(require racket/unsafe/ops
+(require (rename-in racket/unsafe/ops
+                    [unsafe-struct*-ref struct-ref]
+                    [unsafe-struct*-set! struct-set!])
          (for-syntax racket/base))
 
 
@@ -35,7 +37,9 @@
          ddict-remove
          ddict-remove!
          ddict-clear!
+         ddict-clear
          ddict-copy
+         ddict-copy-clear
          ddict-has-key?
          ddict-empty?
          ddict-compact?
@@ -45,6 +49,8 @@
          ddict-values
          ddict->list
          in-ddict
+         in-ddict-keys
+         in-ddict-values
          ddict-map
          ddict-for-each
          for/ddict
@@ -64,10 +70,15 @@
   (λ (x) (hash-has-key? elems x)))
 
 (define-syntax-rule (too-fragmented? elems del)
-  (> del (arithmetic-shift (hash-count elems) -1)))
+  (> del (hash-count elems)))
 
 (define-syntax-rule (ref-fail name-sym)
   (λ () (error name-sym "invalid ddict state! (possibly from concurrent mutation)")))
+
+(define-syntax-rule (no-key-err-thunk fun-name key)
+  (λ () (raise (make-exn:fail:contract
+                (format "~a: no value found for key\n key: ~a" (quote fun-name) key)
+                (current-continuation-marks)))))
 
 ;; elems - hash? - the actual dictionary data structure -- used for
 ;; both mappings and equality checks
@@ -80,24 +91,20 @@
   #:constructor-name do-not-use-me-ever)
 
 ;; NOTE: keep these in sync w/ above def!!!!!!
-;(define-syntax-rule (unsafe-ddict-elems dd) (unsafe-struct*-ref dd 0))
-(define-syntax-rule (unsafe-ddict-elems dd) (ddict-elems dd))
+(define-syntax-rule (unsafe-ddict-elems dd) (struct-ref dd 0))
+;(define-syntax-rule (unsafe-ddict-elems dd) (ddict-elems dd))
 
-;(define-syntax-rule (unsafe-ddict-del dd)          (unsafe-struct*-ref  dd 1))
-(define-syntax-rule (unsafe-ddict-del dd)          (ddict-del  dd))
+(define-syntax-rule (unsafe-ddict-del dd)          (unsafe-struct-ref  dd 1))
+;(define-syntax-rule (unsafe-ddict-del dd)          (ddict-del  dd))
 
-;(define-syntax-rule (unsafe-set-ddict-del! dd val) (unsafe-struct*-set! dd 1 val))
-(define-syntax-rule (unsafe-set-ddict-del! dd val) (set-ddict-del! dd val))
+(define-syntax-rule (unsafe-set-ddict-del! dd val) (unsafe-struct-set! dd 1 val))
+;(define-syntax-rule (unsafe-set-ddict-del! dd val) (set-ddict-del! dd val))
 
-;(define-syntax-rule (unsafe-ddict-seq dd)          (unsafe-struct*-ref  dd 2))
-(define-syntax-rule (unsafe-ddict-seq dd)          (ddict-seq  dd))
+(define-syntax-rule (unsafe-ddict-seq dd)          (unsafe-struct-ref  dd 2))
+;(define-syntax-rule (unsafe-ddict-seq dd)          (ddict-seq  dd))
 
-;(define-syntax-rule (unsafe-set-ddict-seq! dd val) (unsafe-struct*-set! dd 2 val))
-(define-syntax-rule (unsafe-set-ddict-seq! dd val) (set-ddict-seq! dd val))
-
-(define (ddict-equal? x) (and (ddict? x) (hash-equal? (unsafe-ddict-elems x))))
-(define (ddict-eqv? x) (and (ddict? x) (hash-eqv? (unsafe-ddict-elems x))))
-(define (ddict-eq? x) (and (ddict? x) (hash-eq? (unsafe-ddict-elems x))))
+(define-syntax-rule (unsafe-set-ddict-seq! dd val) (unsafe-struct-set! dd 2 val))
+;(define-syntax-rule (unsafe-set-ddict-seq! dd val) (set-ddict-seq! dd val))
 
 ;; 
 ;; ddict-print
@@ -181,7 +188,7 @@
               [else (loop (cddr args) elems (add1 count) (cons key seq))]))]
          [else
           (raise-argument-error
-           (quote name)
+           name
            "an even number of arguments"
            initial-args)])]
       [(null? args) (immutable-ddict elems del seq)]
@@ -237,23 +244,29 @@
 
 ;; "make-" constructor template for immutable ddicts
 (define-syntax-rule (make-ddict/template name init-hash)
-  (λ (alist)
-    (unless (and (list? alist) (andmap pair? alist))
-      (raise-argument-error (quote name)
-                            "a list of pairs"
-                            alist))
-    (define-values (elems seq)
-      (for*/fold ([elems init-hash]
-                  [seq '()])
-                 ([p (in-list alist)]
-                  [key (in-value (car p))]
-                  [val (in-value (cdr p))]
-                  [prev-count (hash-count elems)]
-                  [elems (hash-set elems key val)])
-        (if (eqv? (hash-count elems) prev-count)
-            (values elems key)
-            (values elems (cons key seq)))))
-    (immutable-ddict elems 0 seq)))
+  (λ (initial-alist)
+    (let loop ([alist initial-alist]
+               [elems init-hash]
+               [seq '()])
+      (cond
+        [(pair? alist)
+         (define p (car alist))
+         (define rst (cdr alist))
+         (cond
+           [(pair? p)
+            (define key (car p))
+            (define count (hash-count elems))
+            (let ([elems (hash-set elems key (cdr p))])
+              (if (eqv? (hash-count elems) count)
+                  (loop rst elems seq)
+                  (loop rst elems (cons key seq))))]
+           [else (raise-argument-error (quote name)
+                                       "(listof pair?)"
+                                       initial-alist)])]
+        [(null? alist) (immutable-ddict elems 0 seq)]
+        [else (raise-argument-error (quote name)
+                                    "(listof pair?)"
+                                    initial-alist)]))))
 
 (define make-ddict (make-ddict/template make-ddict #hash()))
 (define make-ddicteqv (make-ddict/template make-ddicteqv #hasheqv()))
@@ -261,19 +274,29 @@
 
 ;; "make-" constructor template for mutable ddicts
 (define-syntax-rule (make-mutable-ddict/template name make-init-hash)
-  (λ (alist)
+  (λ (initial-alist)
     (define elems (make-init-hash))
-    (define seq
-      (for*/fold ([seq '()])
-                 ([p (in-list alist)]
-                  [key (in-value (car p))]
-                  [val (in-value (cdr p))]
-                  [prev-count (hash-count elems)])
-        (hash-set! elems key val)
-        (if (eqv? (hash-count elems) prev-count)
-            seq
-            (cons key seq))))
-    (mutable-ddict elems 0 seq)))
+    (let loop ([alist initial-alist]
+               [seq '()])
+      (cond
+        [(pair? alist)
+         (define p (car alist))
+         (define rst (cdr alist))
+         (cond
+           [(pair? p)
+            (define key (car p))
+            (define count (hash-count elems))
+            (hash-set! elems key (cdr p))
+            (if (eqv? (hash-count elems) count)
+                (loop rst seq)
+                (loop rst (cons key seq)))]
+           [else (raise-argument-error (quote name)
+                                       "(listof pair?)"
+                                       initial-alist)])]
+        [(null? alist) (mutable-ddict elems 0 seq)]
+        [else (raise-argument-error (quote name)
+                                    "(listof pair?)"
+                                    initial-alist)]))))
 
 (define make-mutable-ddict (make-mutable-ddict/template make-ddict make-hash))
 (define make-mutable-ddicteqv (make-mutable-ddict/template make-ddicteqv make-hasheqv))
@@ -337,6 +360,13 @@
                [else error-expr])))))]))
 
 
+(define/dd (ddict-equal? [(ddict elems _ _) dd])
+  (hash-equal? elems))
+(define/dd (ddict-eqv? [(ddict elems _ _) dd])
+  (hash-eqv? elems))
+(define/dd (ddict-eq? [(ddict elems _ _) dd])
+  (hash-eq? elems))
+
 ;;
 ;; ddict-set
 ;;
@@ -362,13 +392,10 @@
 (define/dd (ddict-update [(iddict elems del seq) dd]
                          key
                          updater
-                         [failure (λ () (raise-argument-error
-                                         'ddict-update
-                                         "a key with an entry in the ddict"
-                                         key))])
+                         [failure (no-key-err-thunk ddict-update key)])
   (unless (and (procedure? updater)
                (procedure-arity-includes? updater 1))
-    (raise-argument-error 'ddict-update "procedure with arity 1" updater))
+    (raise-argument-error 'ddict-update "(any/c . -> . any/c)" updater))
   (define prev-count (hash-count elems))
   (let ([elems (hash-update elems key updater failure)])
     (immutable-ddict elems del (if (eqv? (hash-count elems) prev-count)
@@ -382,18 +409,14 @@
 (define/dd (ddict-update! [(mddict elems del seq) dd]
                           key
                           updater
-                          [failure (λ () (raise-argument-error
-                                          'ddict-update
-                                          "a key with an entry in the ddict"
-                                          key))])
+                          [failure (no-key-err-thunk ddict-update! key)])
   (unless (and (procedure? updater)
                (procedure-arity-includes? updater 1))
-    (raise-argument-error 'ddict-update! "procedure with arity 1" updater))
+    (raise-argument-error 'ddict-update! "(any/c . -> . any/c)" updater))
   (define prev-count (hash-count elems))
   (hash-update! elems key updater failure)
   (unless (eqv? (hash-count elems) prev-count)
     (unsafe-set-ddict-seq! dd (cons key seq))))
-
 
 ;;
 ;; ddict-set*
@@ -422,19 +445,19 @@
 (define/dd (ddict-remove! [(mddict elems del seq) dd] key)
   (hash-remove! elems key)
   (let ([del (add1 del)])
-    (unsafe-set-ddict-del! dd del)
-    (when (too-fragmented? elems del)
-      (unsafe-set-ddict-seq! dd (filter (in? elems) seq)))))
+    (cond
+      [(too-fragmented? elems del)
+       (unsafe-set-ddict-seq! dd (filter (in? elems) seq))
+       (unsafe-set-ddict-del! dd 0)]
+      [else
+       (unsafe-set-ddict-del! dd del)])))
 
 ;;
 ;; ddict-ref
 ;;
 (define/dd (ddict-ref [(ddict elems _ _) dd]
                       key
-                      [failure (λ () (raise-argument-error
-                                      'ddict-ref
-                                      "a key with an entry in the ddict"
-                                      key))])
+                      [failure (no-key-err-thunk ddict-ref key)])
   (hash-ref elems key failure))
 
 ;;
@@ -450,12 +473,29 @@
   val)
 
 ;;
-;; ddict-copy
+;; ddict-clear!
 ;;
 (define/dd (ddict-clear! [(mddict elems _ _) dd])
   (hash-clear! elems)
   (unsafe-set-ddict-del! dd 0)
   (unsafe-set-ddict-seq! dd '()))
+
+;;
+;; ddict-clear
+;;
+(define/dd (ddict-clear [(iddict elems _ _) dd])
+  (immutable-ddict (hash-clear elems) 0 '()))
+
+;;
+;; ddict-copy-clear
+;;
+(define/dd (ddict-copy-clear [(ddict elems _ _) dd])
+  (cond
+    [(immutable-ddict? dd)
+     (immutable-ddict (hash-copy-clear elems) 0 '())]
+    [(mutable-ddict? dd)
+     (mutable-ddict (hash-copy-clear elems) 0 '())]
+    [else (error 'ddict-copy-clear "internal bug! impossible ddict: ~a" dd)]))
 
 ;;
 ;; ddict-copy
@@ -531,6 +571,9 @@
 ;; ddict-map
 ;;
 (define/dd (ddict-map [(ddict elems del seq) dd] f)
+  (unless (and (procedure? f)
+               (procedure-arity-includes? f 2))
+    (raise-argument-error 'ddict-map "(any/c any/c . -> . any/c)" f))
   (unsafe-ddict-compact! dd elems del seq)
   (for/list ([key (in-list (unsafe-ddict-seq dd))])
     (f key (hash-ref elems key (ref-fail 'ddict-map)))))
@@ -539,6 +582,9 @@
 ;; ddict-for-each
 ;;
 (define/dd (ddict-for-each [(ddict elems del seq) dd] f)
+  (unless (and (procedure? f)
+               (procedure-arity-includes? f 2))
+    (raise-argument-error 'ddict-for-each "(any/c any/c . -> . any/c)" f))
   (unsafe-ddict-compact! dd elems del seq)
   (for ([key (in-list (unsafe-ddict-seq dd))])
     (f key (hash-ref elems key (ref-fail 'ddict-for-each)))))
@@ -605,6 +651,74 @@
                (values a
                        (hash-ref elems a (ref-fail 'in-ddict))
                        d))])
+           ;; pre-guard
+           #t
+           ;; post-guard
+           #t
+           ;; (loop-arg ...)
+           (rst))]])))
+
+;;
+;; in-ddict-keys
+;;
+(define-sequence-syntax in-ddict-keys
+  (λ () #'in-ddict-keys-proc)
+  (λ (stx)
+    (syntax-case stx ()
+      [[(key) (_ dd-exp)]
+       #'[(key)
+          (:do-in
+           ;; ([(outer-id ...) outer-expr] ...)
+           ([(elems seq)
+             (let ([dd dd-exp])
+               (unless (ddict? dd)
+                 (raise-argument-error 'in-ddict-keys "ddict?" dd))
+               (ddict-compact! dd)
+               (values (unsafe-ddict-elems dd)
+                       (unsafe-ddict-seq dd)))])
+           ;; outer-check
+           #t
+           ;; ([loop-id loop-expr] ...)
+           ([pos seq])
+           ;; pos-guard
+           (pair? pos)
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key rst) (values (car pos) (cdr pos))])
+           ;; pre-guard
+           #t
+           ;; post-guard
+           #t
+           ;; (loop-arg ...)
+           (rst))]])))
+
+;;
+;; in-ddict
+;;
+(define-sequence-syntax in-ddict-values
+  (λ () #'in-ddict-values-proc)
+  (λ (stx)
+    (syntax-case stx ()
+      [[(val) (_ dd-exp)]
+       #'[(val)
+          (:do-in
+           ;; ([(outer-id ...) outer-expr] ...)
+           ([(elems seq)
+             (let ([dd dd-exp])
+               (unless (ddict? dd)
+                 (raise-argument-error 'in-ddict-values "ddict?" dd))
+               (ddict-compact! dd)
+               (values (unsafe-ddict-elems dd)
+                       (unsafe-ddict-seq dd)))])
+           ;; outer-check
+           #t
+           ;; ([loop-id loop-expr] ...)
+           ([pos seq])
+           ;; pos-guard
+           (pair? pos)
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(val rst)
+             (values (hash-ref elems (car pos) (ref-fail 'in-ddict-values))
+                     (cdr pos))])
            ;; pre-guard
            #t
            ;; post-guard
