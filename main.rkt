@@ -72,13 +72,13 @@
 (define-syntax-rule (too-fragmented? elems del)
   (> del (hash-count elems)))
 
-(define-syntax-rule (ref-fail name-sym)
-  (λ () (error name-sym "invalid ddict state! (possibly from concurrent mutation)")))
-
 (define-syntax-rule (no-key-err-thunk fun-name key)
   (λ () (raise (make-exn:fail:contract
                 (format "~a: no value found for key\n key: ~a" (quote fun-name) key)
                 (current-continuation-marks)))))
+
+
+(define *missing* (let () (struct missing ()) (missing)))
 
 ;; elems - hash? - the actual dictionary data structure -- used for
 ;; both mappings and equality checks
@@ -119,16 +119,11 @@
       (if (immutable-ddict? dd)
           (write-string "(ddict" port)
           (write-string "(mutable-ddict" port)))
-  (let ([l (filter (in? elems) (ddict-seq dd))]
-        [recur (case mode
+  (let ([recur (case mode
                  [(#t) write]
                  [(#f) display]
                  [else (λ (p port) (print p port mode))])])
-    (when (not (null? l))
-      (for* ([key (in-list l)]
-             [val (in-value (hash-ref elems key (ref-fail 'ddict-print)))])
-        (write-string " " port)
-        (recur (cons key val) port))))
+    (recur (ddict->list dd) port))
   (if mode
       (write-string ">" port)
       (write-string ")" port)))
@@ -531,16 +526,13 @@
 ;; ddict-compact!
 ;;
 (define/dd (ddict-compact! [(ddict elems del seq) dd])
-  (unsafe-ddict-compact! dd elems del seq))
-
-(define-syntax-rule (unsafe-ddict-compact! dd elems del seq)
   (unless (zero? del)
     (define seq* (filter (in? elems) seq))
     (unsafe-set-ddict-seq! dd seq*)
     (unsafe-set-ddict-del! dd 0)))
 
 ;;
-;; ddict-clean?
+;; ddict-compact?
 ;;
 (define/dd (ddict-compact? [(ddict _ del _) dd])
   (zero? del))
@@ -549,24 +541,35 @@
 ;; ddict-keys
 ;;
 (define/dd (ddict-keys [(ddict elems del seq) dd])
-  (unsafe-ddict-compact! dd elems del seq)
-  (unsafe-ddict-seq dd))
+  (cond
+    [(and (zero? del) (immutable? elems)) seq]
+    [else (for*/list ([key (in-list seq)]
+                      #:when (hash-has-key? elems key))
+            key)]))
 
 ;; 
 ;; ddict-values
 ;; 
 (define/dd (ddict-values [(ddict elems del seq) dd])
-  (unsafe-ddict-compact! dd elems del seq)
-  (for/list ([key (in-list (unsafe-ddict-seq dd))])
-    (hash-ref elems key (ref-fail 'ddict-values))))
+  (cond
+    [(and (zero? del) (immutable? elems))
+     (map (λ (key) (hash-ref elems key)) seq)]
+    [else (for*/list ([key (in-list seq)]
+                      [val (in-value (hash-ref elems key *missing*))]
+                      #:unless (eq? val *missing*))
+            val)]))
 
 ;;
 ;; ddict->list
 ;;
 (define/dd (ddict->list [(ddict elems del seq) dd])
-  (unsafe-ddict-compact! dd elems del seq)
-  (for/list ([key (in-list (unsafe-ddict-seq dd))])
-    (cons key (hash-ref elems key (ref-fail 'ddict->list)))))
+  (cond
+    [(and (zero? del) (immutable? elems))
+     (map (λ (key) (cons key (hash-ref elems key))) seq)]
+    [else (for*/list ([key (in-list seq)]
+                      [val (in-value (hash-ref elems key *missing*))]
+                      #:unless (eq? val *missing*))
+            (cons key val))]))
 
 ;;
 ;; ddict-map
@@ -575,9 +578,13 @@
   (unless (and (procedure? f)
                (procedure-arity-includes? f 2))
     (raise-argument-error 'ddict-map "(any/c any/c . -> . any/c)" f))
-  (unsafe-ddict-compact! dd elems del seq)
-  (for/list ([key (in-list (unsafe-ddict-seq dd))])
-    (f key (hash-ref elems key (ref-fail 'ddict-map)))))
+  (cond
+    [(and (zero? del) (immutable? elems))
+     (map (λ (key) (f key (hash-ref elems key))) seq)]
+    [else (for*/list ([key (in-list seq)]
+                      [val (in-value (hash-ref elems key *missing*))]
+                      #:unless (eq? val *missing*))
+            (f key val))]))
 
 ;;
 ;; ddict-for-each
@@ -586,23 +593,42 @@
   (unless (and (procedure? f)
                (procedure-arity-includes? f 2))
     (raise-argument-error 'ddict-for-each "(any/c any/c . -> . any/c)" f))
-  (unsafe-ddict-compact! dd elems del seq)
-  (for ([key (in-list (unsafe-ddict-seq dd))])
-    (f key (hash-ref elems key (ref-fail 'ddict-for-each)))))
+  (cond
+    [(and (zero? del) (immutable? elems))
+     (for-each (λ (key) (f key (hash-ref elems key))) seq)]
+    [else (for* ([key (in-list seq)]
+                 [val (in-value (hash-ref elems key *missing*))]
+                 #:unless (eq? val *missing*))
+            (f key val))]))
 
 
 ;;
-;; next-valid-pos
+;; next-key/val
 ;;
-(define-syntax-rule (next-valid-pos elems seq)
-  (and (pair? seq) seq))
+(define-syntax-rule (next-key/val elems seq)
+  (cond
+    [(pair? seq)
+     (define key (car seq))
+     (define val (hash-ref elems key *missing*))
+     (if (eq? val *missing*)
+         (next-key/val-proc elems (cdr seq))
+         (values key val (cdr seq)))]
+    [else (values #f #f #f)]))
 
+(define (next-key/val-proc elems seq)
+  (cond
+    [(pair? seq)
+     (define key (car seq))
+     (define val (hash-ref elems key *missing*))
+     (if (eq? val *missing*)
+         (next-key/val-proc elems (cdr seq))
+         (values key val (cdr seq)))]
+    [else (values #f #f #f)]))
 
 ;;
 ;; in-ddict-proc
 ;;
 (define (in-ddict-proc dd)
-  (ddict-compact! dd)
   (cond
     [(ddict? dd)
      (define elems (unsafe-ddict-elems dd))
@@ -612,9 +638,9 @@
         (values
          (λ (pos)
            (let ([key (car pos)])
-             (values key (hash-ref elems key (ref-fail 'in-ddict)))))
-         (λ (pos) (next-valid-pos elems (cdr pos)))
-         (next-valid-pos elems seq)
+             (values key (hash-ref elems key *missing*))))
+         (λ (pos) (next-key/val elems (cdr pos)))
+         (next-key/val elems seq)
          values
          #f
          #f)))]
@@ -636,7 +662,6 @@
              (let ([dd dd-exp])
                (unless (ddict? dd)
                  (raise-argument-error 'in-ddict "ddict?" dd))
-               (ddict-compact! dd)
                (values (unsafe-ddict-elems dd)
                        (unsafe-ddict-seq dd)))])
            ;; outer-check
@@ -644,20 +669,36 @@
            ;; ([loop-id loop-expr] ...)
            ([pos seq])
            ;; pos-guard
-           (pair? pos)
-           ;; ([(inner-id ...) inner-expr] ...)
-           ([(key val rst)
-             (let ([a (car pos)]
-                   [d (cdr pos)])
-               (values a
-                       (hash-ref elems a (ref-fail 'in-ddict))
-                       d))])
-           ;; pre-guard
            #t
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key val rst) (next-key/val elems pos)])
+           ;; pre-guard
+           rst
            ;; post-guard
            #t
            ;; (loop-arg ...)
            (rst))]])))
+
+;;
+;; next-key
+;;
+(define-syntax-rule (next-key elems seq)
+  (cond
+    [(pair? seq)
+     (define key (car seq))
+     (if (eq? *missing* (hash-ref elems key *missing*))
+         (next-keyproc elems (cdr seq))
+         (values key (cdr seq)))]
+    [else (values #f #f)]))
+
+(define (next-keyproc elems seq)
+  (cond
+    [(pair? seq)
+     (define key (car seq))
+     (if (eq? *missing* (hash-ref elems key *missing*))
+         (next-keyproc elems (cdr seq))
+         (values key (cdr seq)))]
+    [else (values #f #f)]))
 
 ;;
 ;; in-ddict-keys
@@ -674,7 +715,6 @@
              (let ([dd dd-exp])
                (unless (ddict? dd)
                  (raise-argument-error 'in-ddict-keys "ddict?" dd))
-               (ddict-compact! dd)
                (values (unsafe-ddict-elems dd)
                        (unsafe-ddict-seq dd)))])
            ;; outer-check
@@ -682,18 +722,40 @@
            ;; ([loop-id loop-expr] ...)
            ([pos seq])
            ;; pos-guard
-           (pair? pos)
-           ;; ([(inner-id ...) inner-expr] ...)
-           ([(key rst) (values (car pos) (cdr pos))])
-           ;; pre-guard
            #t
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key rst) (next-key elems pos)])
+           ;; pre-guard
+           rst
            ;; post-guard
            #t
            ;; (loop-arg ...)
            (rst))]])))
 
+
 ;;
-;; in-ddict
+;; next-val
+;;
+(define-syntax-rule (next-val elems seq)
+  (cond
+    [(pair? seq)
+     (define val (hash-ref elems (car seq) *missing*))
+     (if (eq? val *missing*)
+         (next-valproc elems (cdr seq))
+         (values val (cdr seq)))]
+    [else (values #f #f)]))
+
+(define (next-valproc elems seq)
+  (cond
+    [(pair? seq)
+     (define val (hash-ref elems (car seq) *missing*))
+     (if (eq? val *missing*)
+         (next-valproc elems (cdr seq))
+         (values val (cdr seq)))]
+    [else (values #f #f)]))
+
+;;
+;; in-ddict-values
 ;;
 (define-sequence-syntax in-ddict-values
   (λ () #'in-ddict-values-proc)
@@ -707,7 +769,6 @@
              (let ([dd dd-exp])
                (unless (ddict? dd)
                  (raise-argument-error 'in-ddict-values "ddict?" dd))
-               (ddict-compact! dd)
                (values (unsafe-ddict-elems dd)
                        (unsafe-ddict-seq dd)))])
            ;; outer-check
@@ -715,13 +776,11 @@
            ;; ([loop-id loop-expr] ...)
            ([pos seq])
            ;; pos-guard
-           (pair? pos)
-           ;; ([(inner-id ...) inner-expr] ...)
-           ([(val rst)
-             (values (hash-ref elems (car pos) (ref-fail 'in-ddict-values))
-                     (cdr pos))])
-           ;; pre-guard
            #t
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(val rst) (next-val elems pos)])
+           ;; pre-guard
+           rst
            ;; post-guard
            #t
            ;; (loop-arg ...)
