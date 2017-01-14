@@ -49,6 +49,7 @@
          ddict-values
          ddict->list
          in-ddict
+         in-immutable-ddict
          in-ddict-keys
          in-ddict-values
          ddict-map
@@ -114,11 +115,11 @@
   (define elems (ddict-elems dd))
   (if mode
       (if (immutable-ddict? dd)
-          (write-string "#<ddict:" port)
-          (write-string "#<mutable-ddict:" port))
+          (write-string "#<ddict: " port)
+          (write-string "#<mutable-ddict: " port))
       (if (immutable-ddict? dd)
-          (write-string "(ddict" port)
-          (write-string "(mutable-ddict" port)))
+          (write-string "(ddict " port)
+          (write-string "(mutable-ddict " port)))
   (let ([recur (case mode
                  [(#t) write]
                  [(#f) display]
@@ -188,11 +189,7 @@
            "an even number of arguments"
            initial-args)])]
       [(null? args) (immutable-ddict elems del seq)]
-      [else
-       (raise-argument-error
-        name
-        "a list of keys and values"
-        initial-args)])))
+      [else (error name "impossible! you found a bug!")])))
 
 (define ddict*    (immutable-ddict-constructor ddict empty-ddict #hash()))
 (define ddicteqv* (immutable-ddict-constructor ddicteqv empty-ddicteqv #hasheqv()))
@@ -227,11 +224,7 @@
            "an even number of arguments"
            initial-args)])]
       [(null? args) (unsafe-set-ddict-seq! dd seq)]
-      [else
-       (raise-argument-error
-        name
-        "a list of keys and values"
-        initial-args)])))
+      [else (error name "impossible! you found a bug!")])))
 
 (define mutable-ddict* (mutable-ddict-constructor mutable-ddict make-hash))
 (define mutable-ddicteqv* (mutable-ddict-constructor mutable-ddicteqv make-hasheqv))
@@ -667,6 +660,47 @@
            ([(key val rst) (next-key/val elems pos)])
            ;; pre-guard
            rst
+           ;; post-guard
+           #t
+           ;; (loop-arg ...)
+           (rst))]])))
+
+(define in-immutable-ddict-bug (λ () (error 'in-immutable-ddict "internal bug")))
+
+;;
+;; in-immutable-ddict
+;;
+(define-sequence-syntax in-immutable-ddict
+  (λ () #'(λ (dd) (unless (immutable-ddict? dd)
+                    (raise-argument-error 'in-immutable-ddict "immutable-ddict?" dd))
+            (in-ddict-proc dd)))
+  (λ (stx)
+    (syntax-case stx ()
+      [[(key val) (_ dd-exp)]
+       #'[(key val)
+          (:do-in
+           ;; ([(outer-id ...) outer-expr] ...)
+           ([(elems seq)
+             (let ([dd dd-exp])
+               (unless (immutable-ddict? dd)
+                 (raise-argument-error 'in-immutable-ddict "immutable-ddict?" dd))
+               (ddict-compact! dd)
+               (values (unsafe-ddict-elems dd)
+                       (unsafe-ddict-seq dd)))])
+           ;; outer-check
+           #t
+           ;; ([loop-id loop-expr] ...)
+           ([pos seq])
+           ;; pos-guard
+           (pair? pos)
+           ;; ([(inner-id ...) inner-expr] ...)
+           ([(key val rst)
+             (let ([key (car pos)])
+               (values key
+                       (hash-ref elems key in-immutable-ddict-bug)
+                       (cdr pos)))])
+           ;; pre-guard
+           #t
            ;; post-guard
            #t
            ;; (loop-arg ...)

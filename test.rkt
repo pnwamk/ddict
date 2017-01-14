@@ -382,7 +382,7 @@
        (let ([_1 (check-exn #rx"expected: \\(listof pair\\?\\)" (λ () (make 42)))]
              [_2 (check-exn #rx"expected: \\(listof pair\\?\\)" (λ () (make '((1 . 2) (3 . 4) . (5 . 6)))))]
              [mt (make '())]
-             [dd (make '((1 . "1") (2 . "2") (3 . "3")))])
+             [dd (make '((1 . "1") (2 . "2") (3 . "3") (3 . "3")))])
          (check-true (pred? mt))
          (check-true (comparison-pred? mt))
          (check-true (pred? dd))
@@ -532,9 +532,13 @@
 ;; - - - - - - - - - - - -
 ;; ddict-copy
 ;; - - - - - - - - - - - -
-(let* ([dd1 (mutable-ddict 1 1)]
-       [dd2 (ddict-copy dd1)])
+(let* ([dd0 (mutable-ddict 1 1 2 2)]
+       [dd1 (mutable-ddict 1 1)]
+       [dd2 (ddict-copy dd1)]
+       [_ (ddict-remove! dd0 2)]
+       [dd3 (ddict-copy dd0)])
   (check-equal? dd1 dd2)
+  (check-equal? dd1 dd3)
   (check-false (eq? dd1 dd2))
   (ddict-remove! dd1 1)
   (check-false (equal? dd1 dd2)))
@@ -544,10 +548,14 @@
 ;; - - - - - - - - - - - -
 ;; ddict-copy-clear
 ;; - - - - - - - - - - - -
-(let* ([dd1 (ddict 1 1)]
+(let* ([dd0 (ddict-copy-clear (ddict-remove (ddict 1 1 2 2) 2))]
+       [dd1 (ddict 1 1)]
        [dd2 (ddict-copy-clear dd1)])
+  (check-true (ddict? dd0))
   (check-true (ddict? dd2))
+  (check-true (ddict-equal? dd0))
   (check-true (ddict-equal? dd2))
+  (check-true (ddict-empty? dd0))
   (check-true (ddict-empty? dd2))
   (check-false (ddict-empty? dd1)))
 (let* ([dd1 (ddicteqv 1 1)]
@@ -630,25 +638,103 @@
 (check-equal? (for/list ([(k v) (in-ddict dd5)])
                 (cons k v))
               (ddict->list dd5))
+(check-equal? (for/list ([(k v) (in-ddict (ddict-remove (ddict-remove dd5 0) 1))])
+                (cons k v))
+              (ddict->list (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([(k v) (in-ddict (ddict-remove (ddict-remove dd5 4) 3))])
+                (cons k v))
+              (ddict->list (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([(k v) ((λ () (in-ddict dd5)))])
+                (cons k v))
+              (ddict->list dd5))
+(check-exn #rx"in-ddict:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) (in-ddict "foo")])
+                                 (cons k v))
+                               (ddict->list dd5))))
+(check-exn #rx"in-ddict:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) ((λ () (in-ddict "foo")))])
+                                 (cons k v))
+                               (ddict->list dd5))))
+
+;; in-immutable-ddict
+(check-equal? (for/list ([(k v) (in-immutable-ddict dd5)])
+                (cons k v))
+              (ddict->list dd5))
+(check-equal? (for/list ([(k v) (in-immutable-ddict (ddict-remove (ddict-remove dd5 0) 1))])
+                (cons k v))
+              (ddict->list (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([(k v) (in-immutable-ddict (ddict-remove (ddict-remove dd5 4) 3))])
+                (cons k v))
+              (ddict->list (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([(k v) ((λ () (in-immutable-ddict dd5)))])
+                (cons k v))
+              (ddict->list dd5))
+(check-exn #rx"in-immutable-ddict:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) (in-immutable-ddict (mdd5))])
+                                 (cons k v))
+                               (ddict->list dd5))))
+(check-exn #rx"in-immutable-ddict:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) ((λ () (in-immutable-ddict (mdd5))))])
+                                 (cons k v))
+                               (ddict->list dd5))))
 
 ;in-ddict-keys
 (check-equal? (for/list ([k (in-ddict-keys dd5)])
                 k)
               (ddict-keys dd5))
+(check-equal? (for/list ([k (in-ddict-keys (ddict-remove (ddict-remove dd5 0) 1))])
+                k)
+              (ddict-keys (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([k (in-ddict-keys (ddict-remove (ddict-remove dd5 4) 3))])
+                k)
+              (ddict-keys (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([k ((λ () (in-ddict-keys dd5)))])
+                k)
+              (ddict-keys dd5))
+(check-exn #rx"in-ddict-keys:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([k (in-ddict-keys '())])
+                                 k)
+                               (ddict->list dd5))))
+(check-exn #rx"in-ddict-keys:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([k ((λ () (in-ddict-keys '())))])
+                                 k)
+                               (ddict->list dd5))))
 
 ;in-ddict-values
 (check-equal? (for/list ([v (in-ddict-values dd5)])
                 v)
               (ddict-values dd5))
+(check-equal? (for/list ([k (in-ddict-values (ddict-remove (ddict-remove dd5 4) 3))])
+                k)
+              (ddict-values (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([k (in-ddict-values (ddict-remove (ddict-remove dd5 0) 1))])
+                k)
+              (ddict-values (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([v ((λ () (in-ddict-values dd5)))])
+                v)
+              (ddict-values dd5))
+(check-exn #rx"in-ddict-values:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([v (in-ddict-values '())])
+                                 v)
+                               (ddict->list dd5))))
+(check-exn #rx"in-ddict-values:.*expected: ddict\\?"
+           (λ () (check-equal? (for/list ([v ((λ () (in-ddict-values '())))])
+                                 v)
+                               (ddict->list dd5))))
 
 ;for/ddict
 (check-equal? (for/ddict ([n (in-range 5)])
                 (values n (number->string n)))
               dd5)
+(check-equal? (for/ddict ([n (in-range 10)])
+                (values (modulo n 5)
+                        (number->string (modulo n 5))))
+              dd5)
 ;for/ddicteqv
 (check-equal? (for/ddicteqv ([n (in-range 5)])
                 (values n (number->string n)))
               dd5eqv)
+
 ;for/ddicteq
 (check-equal? (for/ddicteq ([n (in-range 5)])
                 (values n (number->string n)))
@@ -658,6 +744,12 @@
                            [n (in-value n)])
                 (values n (number->string n)))
               dd5)
+(check-equal? (for*/ddict ([n (in-range 10)]
+                           [n (in-value n)])
+                (values (modulo n 5)
+                        (number->string (modulo n 5))))
+              dd5)
+
 ;for*/ddicteqv
 (check-equal? (for*/ddicteqv ([n (in-range 5)]
                               [n (in-value n)])
@@ -673,27 +765,53 @@
 (check-equal? (for/mutable-ddict ([n (in-range 5)])
                 (values n (number->string n)))
               (mdd5))
+(check-equal? (for/mutable-ddict ([n (in-range 10)])
+                (values (modulo n 5)
+                        (number->string (modulo n 5))))
+              (mdd5))
+
 ;for/mutable-ddicteqv
 (check-equal? (for/mutable-ddicteqv ([n (in-range 5)])
                 (values n (number->string n)))
               (mdd5eqv))
+
 ;for/mutable-ddicteq
 (check-equal? (for/mutable-ddicteq ([n (in-range 5)])
                 (values n (number->string n)))
               (mdd5eq))
+
 ;for*/mutable-ddict
 (check-equal? (for*/mutable-ddict ([n (in-range 5)]
                                    [n (in-value n)])
                 (values n (number->string n)))
               (mdd5))
+(check-equal? (for*/mutable-ddict ([n (in-range 10)]
+                                   [n (in-value n)])
+                (values (modulo n 5)
+                        (number->string (modulo n 5))))
+              (mdd5))
+
 ;for*/mutable-ddicteqv
 (check-equal? (for*/mutable-ddicteqv ([n (in-range 5)]
                                       [n (in-value n)])
                 (values n (number->string n)))
               (mdd5eqv))
+
 ;for*/mutable-ddicteq
 (check-equal? (for*/mutable-ddicteq ([n (in-range 5)]
                                      [n (in-value n)])
                 (values n (number->string n)))
               (mdd5eq))
+
+;; printing
+(check-equal? (format "~a" dd5)
+                       "(ddict ((4 . 4) (3 . 3) (2 . 2) (1 . 1) (0 . 0)))")
+(check-equal? (format "~a" (mdd5))
+                       "(mutable-ddict ((4 . 4) (3 . 3) (2 . 2) (1 . 1) (0 . 0)))")
+
+;; check hash code
+(check-equal? (equal-hash-code (ddict 1 1 2 2 3 3))
+              (equal-hash-code (ddict 3 3 1 1 2 2)))
+(check-equal? (equal-hash-code (mutable-ddict 1 1 2 2 3 3))
+              (equal-hash-code (mutable-ddict 3 3 1 1 2 2)))
 
