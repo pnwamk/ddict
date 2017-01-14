@@ -631,19 +631,12 @@
 (define (in-ddict-proc dd)
   (cond
     [(ddict? dd)
-     (define elems (unsafe-ddict-elems dd))
-     (define seq (unsafe-ddict-seq dd))
-     (make-do-sequence
-      (λ ()
-        (values
-         (λ (pos)
-           (let ([key (car pos)])
-             (values key (hash-ref elems key *missing*))))
-         (λ (pos) (next-key/val elems (cdr pos)))
-         (next-key/val elems seq)
-         values
-         #f
-         #f)))]
+     (define alist (ddict->list dd))
+     (define-values (keys vals)
+       (for/lists (ks vs)
+         ([p (in-list alist)])
+         (values (car p) (cdr p))))
+     (in-parallel keys vals)]
     [else
      (raise-argument-error 'in-ddict "ddict?" dd)]))
 
@@ -700,6 +693,12 @@
          (values key (cdr seq)))]
     [else (values #f #f)]))
 
+(define (in-ddict-keys-proc dd)
+  (cond
+    [(ddict? dd) (ddict-keys dd)]
+    [else
+     (raise-argument-error 'in-ddict-keys "ddict?" dd)]))
+
 ;;
 ;; in-ddict-keys
 ;;
@@ -753,6 +752,12 @@
          (next-valproc elems (cdr seq))
          (values val (cdr seq)))]
     [else (values #f #f)]))
+
+(define (in-ddict-values-proc dd)
+  (cond
+    [(ddict? dd) (ddict-values dd)]
+    [else
+     (raise-argument-error 'in-ddict-values "ddict?" dd)]))
 
 ;;
 ;; in-ddict-values
