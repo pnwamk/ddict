@@ -2,7 +2,7 @@
 
 (require (for-syntax racket/base)
          rackunit
-         "main.rkt")
+         "../main.rkt")
 
 (define failsym (gensym 'fail))
 
