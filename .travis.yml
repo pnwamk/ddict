@@ -12,12 +12,10 @@ before_install:
 - sh installer.sh --in-place --dest ~/racket/
 
 install:
-- cd ~
-- git clone https://github.com/pnwamk/racket-ddict.git
+- git clone https://github.com/pnwamk/racket-ddict.git ~/ddict
 
 script:
-- cd racket-ddict/extras
-- raco test test.rkt
+- raco test ~/ddict/extras/test.rkt
 - echo "done"
 
 after_script:
