@@ -19,3 +19,5 @@ script:
 - cd racket-ddict/extras
 - raco test test.rkt
 - echo "done"
+
+after_script:
