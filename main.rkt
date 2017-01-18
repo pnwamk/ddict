@@ -755,8 +755,7 @@
          ([p (in-list alist)])
          (values (car p) (cdr p))))
      (in-parallel keys vals)]
-    [else
-     (raise-argument-error name pred-str dd)]))
+    [else (raise-argument-error name pred-str dd)]))
 
 ;;
 ;; in-ddict
@@ -827,7 +826,7 @@
 ;; in-mutable-ddict
 ;;
 (define-sequence-syntax in-mutable-ddict
-  (λ () #'in-ddict-proc)
+  (λ () #'(in-ddict-proc 'in-mutable-ddict mutable-ddict? "mutable-ddict?"))
   (λ (stx)
     (syntax-case stx ()
       [[(key val) (_ dd-exp)]
@@ -896,17 +895,18 @@
 
 
 ;; in-ddict-keys-proc
-(define (in-ddict-keys-proc dd)
+(define ((in-ddict-keys-proc name pred? pred-str) dd)
   (cond
-    [(ddict? dd) (ddict-keys dd)]
-    [else
-     (raise-argument-error 'in-ddict-keys "ddict?" dd)]))
+    [(pred? dd) (ddict-keys dd)]
+    [else (raise-argument-error name pred-str dd)]))
 
 ;;
 ;; in-ddict-keys
 ;;
 (define-sequence-syntax in-ddict-keys
-  (λ () #'in-ddict-keys-proc)
+  (λ () #'(in-ddict-keys-proc 'in-ddict-keys
+                              ddict?
+                              "ddict?"))
   (λ (stx)
     (syntax-case stx ()
       [[(key) (_ dd-exp)]
@@ -940,7 +940,9 @@
 ;; in-immutable-ddict-keys
 ;;
 (define-sequence-syntax in-immutable-ddict-keys
-  (λ () #'in-ddict-keys-proc)
+  (λ () #'(in-ddict-keys-proc 'in-immutable-ddict-keys
+                              immutable-ddict?
+                              "immutable-ddict?"))
   (λ (stx)
     (syntax-case stx ()
       [[(key) (_ dd-exp)]
@@ -951,7 +953,7 @@
              (let ([dd dd-exp])
                (unless (immutable-ddict? dd)
                  (raise-argument-error 'in-immutable-ddict-keys "immutable-ddict?" dd))
-               (if (eqv? 0 (delof dd))
+               (if (eqv? 0 (del-of dd))
                    (values (elems-of dd) (seq-of dd) immutable-next-key/no-del-proc)
                    (values (elems-of dd) (seq-of dd) immutable-next-key-proc)))])
            ;; outer-check
@@ -973,7 +975,9 @@
 ;; in-mutable-ddict-keys
 ;;
 (define-sequence-syntax in-mutable-ddict-keys
-  (λ () #'in-ddict-keys-proc)
+  (λ () #'(in-ddict-keys-proc 'in-mutable-ddict-keys
+                              mutable-ddict?
+                              "mutable-ddict?"))
   (λ (stx)
     (syntax-case stx ()
       [[(key) (_ dd-exp)]

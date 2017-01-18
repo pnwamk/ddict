@@ -688,6 +688,35 @@
                                  (cons k v))
                                (ddict->list dd5))))
 
+;; in-mutable-ddict
+(check-equal? (for/list ([(k v) (in-mutable-ddict (mdd5))])
+                (cons k v))
+              (ddict->list dd5))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 1)
+  (ddict-remove! dd 0)
+  (check-equal? (for/list ([(k v) (in-mutable-ddict dd)])
+                  (cons k v))
+                (ddict->list dd)))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 4)
+  (ddict-remove! dd 3)
+  (check-equal? (for/list ([(k v) (in-mutable-ddict dd)])
+                  (cons k v))
+                (ddict->list dd)))
+(check-equal? (for/list ([(k v) ((λ () (in-mutable-ddict (mdd5))))])
+                (cons k v))
+              (ddict->list (mdd5)))
+(check-exn #rx"in-mutable-ddict:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) (in-mutable-ddict dd5)])
+                                 (cons k v))
+                               (ddict->list (mdd5)))))
+(check-exn #rx"in-mutable-ddict:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([(k v) ((λ () (in-mutable-ddict dd5)))])
+                                 (cons k v))
+                               (ddict->list (mdd5)))))
+
+
 ;in-ddict-keys
 (check-equal? (for/list ([k (in-ddict-keys dd5)])
                 k)
@@ -710,6 +739,56 @@
                                  k)
                                (ddict->list dd5))))
 
+;; in-immutable-ddict-keys
+(check-equal? (for/list ([k (in-immutable-ddict-keys dd5)])
+                k)
+              (ddict-keys dd5))
+(check-equal? (for/list ([k (in-immutable-ddict-keys (ddict-remove (ddict-remove dd5 0) 1))])
+                k)
+              (ddict-keys (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([k (in-immutable-ddict-keys (ddict-remove (ddict-remove dd5 4) 3))])
+                k)
+              (ddict-keys (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([k ((λ () (in-ddict-keys dd5)))])
+                k)
+              (ddict-keys dd5))
+(check-exn #rx"in-immutable-ddict-keys:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k (in-immutable-ddict-keys '())])
+                                 k)
+                               (ddict->list dd5))))
+(check-exn #rx"in-immutable-ddict-keys:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k ((λ () (in-immutable-ddict-keys '())))])
+                                 k)
+                               (ddict->list dd5))))
+
+;; in-mutable-ddict-keys
+(check-equal? (for/list ([k (in-mutable-ddict-keys (mdd5))])
+                k)
+              (ddict-keys dd5))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 1)
+  (ddict-remove! dd 0)
+  (check-equal? (for/list ([k (in-mutable-ddict-keys dd)])
+                  k)
+                (ddict-keys dd)))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 4)
+  (ddict-remove! dd 3)
+  (check-equal? (for/list ([k (in-mutable-ddict-keys dd)])
+                  k)
+                (ddict-keys dd)))
+(check-equal? (for/list ([k ((λ () (in-mutable-ddict-keys (mdd5))))])
+                k)
+              (ddict-keys (mdd5)))
+(check-exn #rx"in-mutable-ddict-keys:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k (in-mutable-ddict-keys dd5)])
+                                 k)
+                               (ddict-keys (mdd5)))))
+(check-exn #rx"in-mutable-ddict-keys:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k ((λ () (in-mutable-ddict-keys dd5)))])
+                                 k)
+                               (ddict-keys (mdd5)))))
+
 ;in-ddict-values
 (check-equal? (for/list ([v (in-ddict-values dd5)])
                 v)
@@ -731,6 +810,58 @@
            (λ () (check-equal? (for/list ([v ((λ () (in-ddict-values '())))])
                                  v)
                                (ddict->list dd5))))
+
+
+;; in-immutable-ddict-values
+(check-equal? (for/list ([k (in-immutable-ddict-values dd5)])
+                k)
+              (ddict-values dd5))
+(check-equal? (for/list ([k (in-immutable-ddict-values (ddict-remove (ddict-remove dd5 0) 1))])
+                k)
+              (ddict-values (ddict-remove (ddict-remove dd5 0) 1)))
+(check-equal? (for/list ([k (in-immutable-ddict-values (ddict-remove (ddict-remove dd5 4) 3))])
+                k)
+              (ddict-values (ddict-remove (ddict-remove dd5 4) 3)))
+(check-equal? (for/list ([k ((λ () (in-immutable-ddict-values dd5)))])
+                k)
+              (ddict-values dd5))
+(check-exn #rx"in-immutable-ddict-values:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k (in-immutable-ddict-values '())])
+                                 k)
+                               (ddict-values dd5))))
+(check-exn #rx"in-immutable-ddict-values:.*expected: immutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k ((λ () (in-immutable-ddict-values '())))])
+                                 k)
+                               (ddict-values dd5))))
+
+;; in-mutable-ddict-values
+(check-equal? (for/list ([v (in-mutable-ddict-values (mdd5))])
+                v)
+              (ddict-values dd5))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 1)
+  (ddict-remove! dd 0)
+  (check-equal? (for/list ([v (in-mutable-ddict-values dd)])
+                  v)
+                (ddict-values dd)))
+(let ([dd (mdd5)])
+  (ddict-remove! dd 4)
+  (ddict-remove! dd 3)
+  (check-equal? (for/list ([v (in-mutable-ddict-values dd)])
+                  v)
+                (ddict-values dd)))
+(check-equal? (for/list ([v ((λ () (in-mutable-ddict-values (mdd5))))])
+                v)
+              (ddict-values (mdd5)))
+(check-exn #rx"in-mutable-ddict-values:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k (in-mutable-ddict-values dd5)])
+                                 k)
+                               (ddict-values (mdd5)))))
+(check-exn #rx"in-mutable-ddict-values:.*expected: mutable-ddict\\?"
+           (λ () (check-equal? (for/list ([k ((λ () (in-mutable-ddict-values dd5)))])
+                                 k)
+                               (ddict-values (mdd5)))))
+
 
 ;for/ddict
 (check-equal? (for/ddict ([n (in-range 5)])
