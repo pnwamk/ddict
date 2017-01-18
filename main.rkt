@@ -48,8 +48,6 @@
          ddict->list
          ddict-map
          ddict-for-each
-         ddict-compact?
-         ddict-compact!
          in-ddict
          in-immutable-ddict
          in-mutable-ddict
@@ -70,7 +68,9 @@
          for/mutable-ddicteq
          for*/mutable-ddict
          for*/mutable-ddicteqv
-         for*/mutable-ddicteq)
+         for*/mutable-ddicteq
+         ddict-compact?
+         ddict-compact!)
 
 
 (define-syntax-rule (no-key-err-thunk fun-name key)
@@ -757,6 +757,7 @@
      (in-parallel keys vals)]
     [else (raise-argument-error name pred-str dd)]))
 
+
 ;;
 ;; in-ddict
 ;;
@@ -789,7 +790,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-ddict
+                           (format "expected an identifier list of length 2, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-ddict "invalid usage" #'blah)])))
 
 ;;
 ;; in-immutable-ddict
@@ -820,7 +828,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list (syntax->datum #'xs))
+       (raise-syntax-error 'in-immutable-ddict
+                           (format "expected an identifier list of length 2, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-immutable-ddict "invalid usage" #'blah)])))
 
 ;;
 ;; in-mutable-ddict
@@ -851,7 +866,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-mutable-ddict
+                           (format "expected an identifier list of length 2, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-mutable-ddict "invalid usage" #'blah)])))
 
 (define (immutable-next-key-proc elems seq)
   (cond
@@ -934,7 +956,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-ddict-keys
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-ddict-keys "invalid usage" #'blah)])))
 
 ;;
 ;; in-immutable-ddict-keys
@@ -969,7 +998,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-immutable-ddict-keys
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-immutable-ddict-keys "invalid usage" #'blah)])))
 
 ;;
 ;; in-mutable-ddict-keys
@@ -1002,7 +1038,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-mutable-ddict-keys
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-mutable-ddict-keys "invalid usage" #'blah)])))
 
 
 ;;
@@ -1084,7 +1127,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-ddict-values
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-ddict-values "invalid usage" #'blah)])))
 
 ;;
 ;; in-immutable-ddict-values
@@ -1117,7 +1167,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-immutable-ddict-values
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-immutable-ddict-values "invalid usage" #'blah)])))
 
 ;;
 ;; in-mutable-ddict-values
@@ -1150,7 +1207,14 @@
            ;; post-guard
            #t
            ;; (loop-arg ...)
-           (rst))]])))
+           (rst))]]
+      [[xs (_ dd-exp)]
+       (list? (syntax->datum #'xs))
+       (raise-syntax-error 'in-mutable-ddict-values
+                           (format "expected a single identifier, given ~a"
+                                   (length (syntax->list #'xs)))
+                           #'xs)]
+      [blah (raise-syntax-error 'in-mutable-ddict-values "invalid usage" #'blah)])))
 
 
 
@@ -1204,6 +1268,3 @@
 (define-for-mutable-ddict for*/mutable-ddict    for*/fold/derived make-hash)
 (define-for-mutable-ddict for*/mutable-ddicteqv for*/fold/derived make-hasheqv)
 (define-for-mutable-ddict for*/mutable-ddicteq  for*/fold/derived make-hasheq)
-
-
-
