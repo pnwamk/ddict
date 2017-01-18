@@ -476,9 +476,15 @@
 (check-exn #rx"ddict-update!: no value found for key"
            (λ () (ddict-update! (mdd5) 42 add1)))
 (let ([dd (mutable-ddict 42 41)])
+  (check-equal? (ddict-ref dd 42) 41)
   (check-equal? (ddict-update! dd 42 add1) (void))
+  (check-equal? (ddict-ref dd 42) 42)
+  (check-equal? (ddict-count dd) 1)
   (check-equal? dd (mutable-ddict 42 42))
   (check-equal? (ddict-update! dd 41 add1 40) (void))
+  (check-equal? (ddict-ref dd 41) 41)
+  (check-equal? (ddict-ref dd 42) 42)
+  (check-equal? (ddict-count dd) 2)
   (check-equal? dd (mutable-ddict 41 41 42 42))
   (check-equal? (ddict-keys dd) '(41 42))
   (check-exn #rx"ddict-update!:.*expected: mutable-ddict\\?"
@@ -585,15 +591,19 @@
   (ddict-remove! dd 1)
   (ddict-remove! dd 2)
   (check-false (ddict-compact? dd))
+  (check-equal? dd (mutable-ddict 3 3 4 4))
   (ddict-compact! dd)
-  (check-true (ddict-compact? dd)))
+  (check-true (ddict-compact? dd))
+  (check-equal? dd (mutable-ddict 3 3 4 4)))
 (let ([dd (ddict-remove
            (ddict-remove
             (ddict 1 1 2 2 3 3 4 4)
             1)
            2)])
+  (check-equal? dd (ddict 3 3 4 4))
   (check-false (ddict-compact? dd))
   (ddict-compact! dd)
+  (check-equal? dd (ddict 3 3 4 4))
   (check-true (ddict-compact? dd)))
 
 ;; - - - - - - - - - - - -
