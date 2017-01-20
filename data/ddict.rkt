@@ -864,7 +864,7 @@
                            (values dd (unsafe-immutable-ddict-seq dd))]
                           [(mutable-ddict? dd)
                            (values dd (unsafe-mutable-ddict-seq dd))]
-                          [else (raise-argument-error 'in-ddict-keys "ddict?" dd)]))])
+                          [else (raise-argument-error 'in-ddict-values "ddict?" dd)]))])
            ;; outer-check
            #t
            ;; ([loop-id loop-expr] ...)
