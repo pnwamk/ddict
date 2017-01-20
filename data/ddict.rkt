@@ -102,150 +102,7 @@
                       seq
                       (cons (make-weak-box key) seq)))))
 
-;; 
-;; ddict-print
-;; 
-(define (iddict-print dd port mode)
-  (cond
-    [(ddict-equal? dd)
-     (if mode
-         (write-string "#<ddict: " port)
-         (write-string "(ddict " port))]
-    [(ddict-eqv? dd)
-     (if mode
-         (write-string "#<ddicteqv: " port)
-         (write-string "(ddicteqv " port))]
-    [else (if mode
-              (write-string "#<ddicteq: " port)
-              (write-string "(ddicteq " port))])
-  (let ([recur (case mode
-                 [(#t) write]
-                 [(#f) display]
-                 [else (λ (p port) (print p port mode))])])
-    (recur (ddict->list dd) port))
-  (if mode
-      (write-string ">" port)
-      (write-string ")" port)))
 
-(define (mddict-print dd port mode)
-  (cond
-    [(ddict-equal? dd)
-     (if mode
-         (write-string "#<mutable-ddict: " port)
-         (write-string "(mutable-ddict " port))]
-    [(ddict-eqv? dd)
-     (if mode
-         (write-string "#<mutable-ddicteqv: " port)
-         (write-string "(mutable-ddicteqv " port))]
-    [else (if mode
-              (write-string "#<mutable-ddicteq: " port)
-              (write-string "(mutable-ddicteq " port))])
-  (let ([recur (case mode
-                 [(#t) write]
-                 [(#f) display]
-                 [else (λ (p port) (print p port mode))])])
-    (recur (ddict->list dd) port))
-  (if mode
-      (write-string ">" port)
-      (write-string ")" port)))
-
-;; 
-;; ddict=?
-;; 
-(define (iddict=? dd1 dd2 rec-equal?)
-  (rec-equal? (immutable-ddict-elems dd1)
-              (immutable-ddict-elems dd2)))
-
-(define (mddict=? dd1 dd2 rec-equal?)
-  (rec-equal? (unsafe-vector*-ref (unsafe-unbox* (mutable-ddict-content-box dd1)) 0)
-              (unsafe-vector*-ref (unsafe-unbox* (mutable-ddict-content-box dd2)) 0)))
-
-;; 
-;; ddict-hash-code
-;; 
-(define (iddict-hash-code dd rec-hc)
-  (rec-hc (immutable-ddict-elems dd)))
-
-(define (mddict-hash-code dd rec-hc)
-  (rec-hc (content-elems (unbox (mutable-ddict-content-box dd)))))
-
-
-(struct immutable-ddict (elems del seq)
-  #:constructor-name iddict
-  #:methods gen:equal+hash
-  [(define equal-proc iddict=?)
-   (define hash-proc iddict-hash-code)
-   (define hash2-proc iddict-hash-code)]
-  #:methods gen:custom-write
-  [(define write-proc iddict-print)]
-  #:methods gen:dict
-  [(define dict-ref ddict-ref)
-   (define dict-set ddict-set)
-   (define dict-remove ddict-remove)
-   (define dict-iterate-first ddict-iterate-first)
-   (define dict-iterate-next ddict-iterate-next)
-   (define dict-iterate-key ddict-iterate-key)
-   (define dict-iterate-value ddict-iterate-value)])
-
-(define (unsafe-immutable-ddict-elems dd)
-  (unsafe-struct*-ref dd 0))
-(define (unsafe-immutable-ddict-seq dd)
-  (unsafe-struct*-ref dd 2))
-
-(struct mutable-ddict (content-box)
-  #:constructor-name unsafe-mk-mddict
-  #:methods gen:equal+hash
-  [(define equal-proc mddict=?)
-   (define hash-proc mddict-hash-code)
-   (define hash2-proc mddict-hash-code)]
-  #:methods gen:custom-write
-  [(define write-proc mddict-print)]
-  #:methods gen:dict
-  [(define dict-ref ddict-ref)
-   (define dict-set! ddict-set!)
-   (define dict-remove! ddict-remove!)
-   (define dict-iterate-first ddict-iterate-first)
-   (define dict-iterate-next ddict-iterate-next)
-   (define dict-iterate-key ddict-iterate-key)
-   (define dict-iterate-value ddict-iterate-value)])
-
-(define (unsafe-mutable-ddict-elems mdd)
-  (unsafe-vector*-ref (unsafe-unbox* (unsafe-struct*-ref mdd 0)) 0))
-(define (unsafe-mutable-ddict-seq mdd)
-  (unsafe-vector*-ref (unsafe-unbox* (unsafe-struct*-ref mdd 0)) 2))
-
-;; NOTE: we assume this vector is of length 3 w/ unsafe ops,
-;; change any/all unsafe-vector... operations if this is modified
-(define-syntax-rule (content a b c) (vector-immutable a b c))
-
-;; NOTE: we assume this structure for mddicts (i.e. that it contains
-;; a box which contains a 'content-vector' -- if any of this is changed,
-;; all unsafe ops must also be changed)
-(define-syntax-rule (mddict elems del seq)
-  (unsafe-mk-mddict (box (content elems del seq))))
-
-(define (content-elems c) (vector-ref c 0))
-(define (content-del c) (vector-ref c 1))
-(define (content-seq c) (vector-ref c 2))
-
-(define (ddict? x) (or (immutable-ddict? x) (mutable-ddict? x)))
-
-(define-syntax-rule (try-update-mddict-content! mdd elems del seq)
-  (let* ([content-box (mutable-ddict-content-box mdd)]
-         [orig-content (unsafe-unbox* content-box)]
-         [new-content (content elems del seq)])
-    (unsafe-box*-cas! content-box orig-content new-content)))
-
-(define (fore-update-mddict-content! mdd elems del seq)
-  (define content-box (mutable-ddict-content-box mdd))
-  (unsafe-set-box*! content-box (content elems del seq)))
-
-;; NOTE: keep these in sync w/ above defs!!!!!!
-
-
-(define empty-ddict (iddict #hash() 0 '()))
-(define empty-ddicteqv (iddict #hasheqv() 0 '()))
-(define empty-ddicteq (iddict #hasheq() 0 '()))
 
 ;; constructor template for immutable ddicts
 (define-syntax-rule (immutable-ddict-constructor name empty init-hash)
@@ -1109,3 +966,152 @@
     (raise-argument-error 'ddict-iterate-value "valid position for given ddict" pos))
   (ddict-position-val pos))
 
+
+
+
+
+;; 
+;; ddict-print
+;; 
+(define (iddict-print dd port mode)
+  (cond
+    [(ddict-equal? dd)
+     (if mode
+         (write-string "#<ddict: " port)
+         (write-string "(ddict " port))]
+    [(ddict-eqv? dd)
+     (if mode
+         (write-string "#<ddicteqv: " port)
+         (write-string "(ddicteqv " port))]
+    [else (if mode
+              (write-string "#<ddicteq: " port)
+              (write-string "(ddicteq " port))])
+  (let ([recur (case mode
+                 [(#t) write]
+                 [(#f) display]
+                 [else (λ (p port) (print p port mode))])])
+    (recur (ddict->list dd) port))
+  (if mode
+      (write-string ">" port)
+      (write-string ")" port)))
+
+(define (mddict-print dd port mode)
+  (cond
+    [(ddict-equal? dd)
+     (if mode
+         (write-string "#<mutable-ddict: " port)
+         (write-string "(mutable-ddict " port))]
+    [(ddict-eqv? dd)
+     (if mode
+         (write-string "#<mutable-ddicteqv: " port)
+         (write-string "(mutable-ddicteqv " port))]
+    [else (if mode
+              (write-string "#<mutable-ddicteq: " port)
+              (write-string "(mutable-ddicteq " port))])
+  (let ([recur (case mode
+                 [(#t) write]
+                 [(#f) display]
+                 [else (λ (p port) (print p port mode))])])
+    (recur (ddict->list dd) port))
+  (if mode
+      (write-string ">" port)
+      (write-string ")" port)))
+
+;; 
+;; ddict=?
+;; 
+(define (iddict=? dd1 dd2 rec-equal?)
+  (rec-equal? (immutable-ddict-elems dd1)
+              (immutable-ddict-elems dd2)))
+
+(define (mddict=? dd1 dd2 rec-equal?)
+  (rec-equal? (unsafe-vector*-ref (unsafe-unbox* (mutable-ddict-content-box dd1)) 0)
+              (unsafe-vector*-ref (unsafe-unbox* (mutable-ddict-content-box dd2)) 0)))
+
+
+
+
+;; 
+;; ddict-hash-code
+;; 
+(define (iddict-hash-code dd rec-hc)
+  (rec-hc (immutable-ddict-elems dd)))
+
+(define (mddict-hash-code dd rec-hc)
+  (rec-hc (content-elems (unbox (mutable-ddict-content-box dd)))))
+
+
+(struct immutable-ddict (elems del seq)
+  #:constructor-name iddict
+  #:methods gen:equal+hash
+  [(define equal-proc iddict=?)
+   (define hash-proc iddict-hash-code)
+   (define hash2-proc iddict-hash-code)]
+  #:methods gen:custom-write
+  [(define write-proc iddict-print)]
+  #:methods gen:dict
+  [(define dict-ref ddict-ref)
+   (define dict-set ddict-set)
+   (define dict-remove ddict-remove)
+   (define dict-iterate-first ddict-iterate-first)
+   (define dict-iterate-next ddict-iterate-next)
+   (define dict-iterate-key ddict-iterate-key)
+   (define dict-iterate-value ddict-iterate-value)])
+
+(define (unsafe-immutable-ddict-elems dd)
+  (unsafe-struct*-ref dd 0))
+(define (unsafe-immutable-ddict-seq dd)
+  (unsafe-struct*-ref dd 2))
+
+(struct mutable-ddict (content-box)
+  #:constructor-name unsafe-mk-mddict
+  #:methods gen:equal+hash
+  [(define equal-proc mddict=?)
+   (define hash-proc mddict-hash-code)
+   (define hash2-proc mddict-hash-code)]
+  #:methods gen:custom-write
+  [(define write-proc mddict-print)]
+  #:methods gen:dict
+  [(define dict-ref ddict-ref)
+   (define dict-set! ddict-set!)
+   (define dict-remove! ddict-remove!)
+   (define dict-iterate-first ddict-iterate-first)
+   (define dict-iterate-next ddict-iterate-next)
+   (define dict-iterate-key ddict-iterate-key)
+   (define dict-iterate-value ddict-iterate-value)])
+
+(define (unsafe-mutable-ddict-elems mdd)
+  (unsafe-vector*-ref (unsafe-unbox* (unsafe-struct*-ref mdd 0)) 0))
+(define (unsafe-mutable-ddict-seq mdd)
+  (unsafe-vector*-ref (unsafe-unbox* (unsafe-struct*-ref mdd 0)) 2))
+
+;; NOTE: we assume this vector is of length 3 w/ unsafe ops,
+;; change any/all unsafe-vector... operations if this is modified
+(define-syntax-rule (content a b c) (vector-immutable a b c))
+
+;; NOTE: we assume this structure for mddicts (i.e. that it contains
+;; a box which contains a 'content-vector' -- if any of this is changed,
+;; all unsafe ops must also be changed)
+(define-syntax-rule (mddict elems del seq)
+  (unsafe-mk-mddict (box (content elems del seq))))
+
+(define (content-elems c) (vector-ref c 0))
+(define (content-del c) (vector-ref c 1))
+(define (content-seq c) (vector-ref c 2))
+
+(define (ddict? x) (or (immutable-ddict? x) (mutable-ddict? x)))
+
+(define-syntax-rule (try-update-mddict-content! mdd elems del seq)
+  (let* ([content-box (mutable-ddict-content-box mdd)]
+         [orig-content (unsafe-unbox* content-box)]
+         [new-content (content elems del seq)])
+    (unsafe-box*-cas! content-box orig-content new-content)))
+
+(define (fore-update-mddict-content! mdd elems del seq)
+  (define content-box (mutable-ddict-content-box mdd))
+  (unsafe-set-box*! content-box (content elems del seq)))
+
+;; NOTE: keep these in sync w/ above defs!!!!!!
+(define empty-ddict (iddict #hash() 0 '()))
+(define empty-ddicteqv (iddict #hasheqv() 0 '()))
+(define empty-ddicteq (iddict #hasheq() 0 '()))
