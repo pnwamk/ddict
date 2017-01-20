@@ -70,11 +70,11 @@ Returns @racket[#t] if @racket[v] is a @tech{ddict}, @racket[#f] otherwise.
 }
 
 @defproc[(immutable-ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is a @tech{immutable-ddict}, @racket[#f] otherwise.
+Returns @racket[#t] if @racket[v] is an @deftech{immutable-ddict}, @racket[#f] otherwise.
 }
 
 @defproc[(mutable-ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is a @tech{mutable-ddict}, @racket[#f] otherwise.
+Returns @racket[#t] if @racket[v] is a @deftech{mutable-ddict}, @racket[#f] otherwise.
 }
 
 
@@ -170,6 +170,17 @@ Returns the value for @racket[key] in @racket[dd]. If no value is found for @rac
 
 @see-also-mutable-key-caveat[]
 }
+
+@defproc[(ddict-ref! [dd mutable-ddict?] [key any/c] [to-set any/c])
+         any/c]{
+
+Returns the value for @racket[key] in @racket[dd].  If no value is
+found for @racket[key], then @racket[to-set] determines the result as
+in @racket[ddict-ref] (i.e., it is either a thunk that computes a value
+or a plain value), and this result is stored in @racket[dd] for the
+@racket[key].
+
+@see-also-caveats[]}
 
 @defproc[(ddict-update [dd immutable-ddict?]
                        [key any/c]
@@ -280,28 +291,19 @@ their associated keys were inserted into @racket[dd].
 }
 
 
-@deftogether[(
-  @defproc[(in-ddict [dd ddict?]) sequence?]
-  @defproc[(in-ddict-keys [dd ddict?]) sequence?]
-  @defproc[(in-ddict-values [dd ddict?]) sequence?]
-)]{
-@racket[in-ddict] returns a sequence containing the keys and associated values of @racket[dd]
- in LIFO order w.r.t. the order they were inserted into @racket[dd].
-@racket[in-ddict-keys] returns a sequence containing the keys of @racket[dd]
- in LIFO order w.r.t. the order they were inserted into @racket[dd].
- @racket[in-ddict-values] returns a sequence containing the values of @racket[dd]
- in LIFO order w.r.t. the order their keys were inserted into @racket[dd].
-}
 
 @deftogether[(
   @defproc[(in-ddict [dd ddict?]) sequence?]
   @defproc[(in-ddict-keys [dd ddict?]) sequence?]
   @defproc[(in-ddict-values [dd ddict?]) sequence?]
 )]{
-@racket[in-ddict] returns a sequence containing the keys and associated values of @racket[dd]
+
+ @racket[in-ddict] returns a sequence containing the keys and associated values of @racket[dd]
  in LIFO order w.r.t. the order they were inserted into @racket[dd].
-@racket[in-ddict-keys] returns a sequence containing the keys of @racket[dd]
+
+ @racket[in-ddict-keys] returns a sequence containing the keys of @racket[dd]
  in LIFO order w.r.t. the order they were inserted into @racket[dd].
+
  @racket[in-ddict-values] returns a sequence containing the values of @racket[dd]
  in LIFO order w.r.t. the order their keys were inserted into @racket[dd].
 
@@ -322,23 +324,23 @@ their associated keys were inserted into @racket[dd].
 @defform[(for*/mutable-ddicteqv (for-clause ...) body-or-break ... body)]
 @defform[(for*/mutable-ddicteq (for-clause ...) body-or-break ... body)]
 )]{
-  Like @racket[for/hash], but producing a @tech{ddict} of the
- respective mutability.
+  Like @racket[for/hash], but producing a @tech{ddict} with the
+ respective mutability and key comparison function.
 }
 
 @section{Performance and Memory Usage}
 
 @bold{Performance.} Immutable and mutable @tech{ddict}s
-internally use Racket's immutable @tech{hash tables} along
-with a @tech{list} of keys in order to provide @tech{
- hash}-like performance and a deterministic iteration order.
-@tech{ddict} operations obviously have overhead which the
-native hash operations do not, but in micro benchmarks
-@tech{ddict} operations appear no worse than 2x their
-equivalent hash operation, and as the size of a dictionary
-increases the overhead becomes less noticeable (i.e. since
-the overhead is constant for the atomic @tech{ddict}
-operations the asymptotic complexity is unaffected).
+internally use Racket's immutable @racket[hash] data
+structure along with a @racket[list] of keys in order to
+provide @racket[hash]-like performance and a deterministic
+iteration order. @tech{ddict} operations obviously have
+overhead which the native hash operations do not, but in
+micro benchmarks @tech{ddict} operations appear no worse
+than 2x their equivalent hash operation, and as the size of
+a dictionary increases the overhead becomes less noticeable
+(i.e. since the overhead is constant for the atomic @tech{
+ ddict} operations the asymptotic complexity is unaffected).
 
 @bold{Memory Usage.} In order to keep @tech{ddict}
 operations such as @racket[ddict-remove] efficient (i.e.
@@ -349,7 +351,8 @@ passes a predetermined threshold (when the number of removed
 key slots exceeds the number of active keys), the list is
 then ``defragmented''. To prevent this fragmentation from
 causing unexpected memory leaks, each key in the key list is
-stored in a @tech{weak-box} so its presence in the key list
+stored in a @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
+ weak-box} so its presence in the key list
 after removal does not prevent garbage collection that would
 otherwise occur.
 
@@ -357,7 +360,7 @@ The hope is that these implementation details are mostly
 unobservable to @tech{ddict} users since their costs will be
 amortized.
 
-If a user is concerned and wants a more fine grained control
+If a user is concerned and wants more fine grained control
 over the presence of internal fragmentation (e.g. if
 removals are performed early on in computation then never
 again) the following functions report on the presence
