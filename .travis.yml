@@ -12,7 +12,7 @@ before_install:
 - sh installer.sh --in-place --dest ~/racket/
 
 install:
-- raco pkg install --auto ddict
+- raco pkg install --auto git://github.com/pnwamk/ddict.git
 - git clone https://github.com/pnwamk/racket-ddict-test.git ~/ddict-test
 
 script:
