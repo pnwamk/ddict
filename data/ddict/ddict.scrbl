@@ -9,9 +9,9 @@
 @author{@(author+email "Andrew Kent" "andmkent@iu.edu")}
 
 @(define (concurrency-caveat)
-  @elemref['(caveat "concurrency")]{caveats concerning concurrent modification})
+  @elemref['(caveat "concurrent modification")]{caveats concerning concurrent modification})
 @(define (mutable-key-caveat)
-  @elemref['(caveat "mutable-keys")]{caveat concerning mutable keys})
+  @elemref['(caveat "mutating keys")]{caveat concerning mutable keys})
 
 @(define (see-also-caveats)
    @t{See also the @concurrency-caveat[] and the @mutable-key-caveat[] above.})
@@ -32,7 +32,7 @@ short). A @tech{ddict} is a
 over the elements of the dictionary.
 
 
-@elemtag['(caveat "concurrency")]{@bold{Caveats concerning
+@elemtag['(caveat "concurrent modification")]{@bold{Caveats concerning
   concurrent modification:}} A mutable ddict can be
 manipulated with @racket[ddict-set!],
 @racket[ddict-remove!], @racket[ddict-ref!], and
@@ -56,7 +56,7 @@ However, the following caveats apply:
   ``atomic.''}
 ]
 
-@elemtag['(caveat "mutable-keys")]{@bold{Caveat concerning
+@elemtag['(caveat "mutating keys")]{@bold{Caveat concerning
   mutable keys:}} If a key in an @racket[equal?]-based ddict
 is mutated, then the ddict's behavior for insertion and
 lookup operations becomes unpredictable.
