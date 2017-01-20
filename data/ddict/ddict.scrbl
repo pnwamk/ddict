@@ -9,12 +9,6 @@
 @author{@(author+email "Andrew Kent" "andmkent@iu.edu")}
 
 
-
-@(define (concurrency-caveat)
-   @elemref['(caveat "concurrency")]{caveats concerning concurrent modification})
-@(define (mutable-key-caveat)
-   @elemref['(caveat "mutable-keys")]{caveat concerning mutable keys})
-
 @(define (see-also-caveats)
    @t{See also the @concurrency-caveat[] and the @mutable-key-caveat[] above.})
 @(define (see-also-concurrency-caveat)
