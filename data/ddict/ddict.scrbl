@@ -22,9 +22,8 @@
 @t{See also the @mutable-key-caveat[] above.})
 
 
-@(require (for-label racket/hash))
 @(define the-eval (make-base-eval))
-@(the-eval '(require racket/hash))
+@(the-eval '(require data/ddict))
 
 
 
