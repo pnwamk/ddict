@@ -41,16 +41,19 @@ over the elements of the dictionary.
 
 @examples[
  #:eval the-eval
- (define dd (ddict 0 'A 1 'B 2 'C))
+ (define dd (ddict 'A 0 'B 1 'C 2))
  dd
  "Note the ordering is LIFO w.r.t. the keys' insertion order"
- (ddict->list (ddict-set dd 25 'Z))
+ (ddict->list (ddict-set dd 'Z 25))
  
- (define mdd (for/mutable-ddict ([n (in-range 5)])
-               (values (number->string n) n)))
+ (define mdd (for/mutable-ddict ([idx (in-naturals)]
+                                 [name (in-list '(null eins zwei drei))])
+               (values idx name)))
  mdd
- (ddict-set! mdd "42" 42)
- (ddict-remove! mdd "4")
+ (ddict-set! mdd 4 'vier)
+ (ddict-set! mdd 6 'sechs)
+ (ddict-remove! mdd 1)
+ (ddict-remove! mdd 3)
  (for ([(key val) (in-ddict mdd)]
        [n (in-naturals)])
    (printf "key ~a: ~a\n" n key)
