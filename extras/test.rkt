@@ -834,8 +834,8 @@
   (thread-wait t3)
   (thread-wait t4)
   (check-equal? (ddict-count mdd) N)
-  (for ([n (in-range N)])
-    (check-equal? (ddict-ref mdd n #f) n))
+  (check-true (for/and ([n (in-range N)])
+                (equal? (ddict-ref mdd n #f)  n)))
   ;; concurrent ddict-remove!
   (set! t1 (thread (λ () (for ([n (in-list l1)])
                            (ddict-remove! mdd n)))))
