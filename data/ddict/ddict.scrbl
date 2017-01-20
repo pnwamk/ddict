@@ -1,6 +1,7 @@
 #lang scribble/doc
 
 @(require scribble/manual
+          scribble/example
           (for-label racket/base
                      racket/contract
                      data/ddict))
@@ -20,6 +21,13 @@
 @(define (see-also-mutable-key-caveat)
 @t{See also the @mutable-key-caveat[] above.})
 
+
+@(require (for-label racket/hash))
+@(define the-eval (make-base-eval))
+@(the-eval '(require racket/hash))
+
+
+
 @defmodule[data/ddict]
 
 This package defines immutable and mutable @deftech{
@@ -30,6 +38,21 @@ short). A @tech{ddict} is a
 @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
  hash table} but which also guarantees LIFO ordering when iterating
 over the elements of the dictionary.
+
+
+@examples[
+ #:eval the-eval
+ (define dd (ddict 0 'A 1 'B 2 'C))
+ dd
+ (ddict-set dd 25 'Z)
+ (define mdd (for/mutable-ddict ([n (in-range 5)])
+               (values (number->string n) n)))
+ mdd
+ (ddict-set! mdd "42" 42)
+ (ddict-remove! mdd "4")
+ mdd
+ ]
+
 
 
 @elemtag['(caveat "concurrent ddict modification")]{@bold{Caveats concerning
