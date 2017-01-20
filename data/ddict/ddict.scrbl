@@ -83,9 +83,9 @@ Returns @racket[#t] if @racket[v] is a @tech{mutable-ddict}, @racket[#f] otherwi
   @defproc[(ddict-eqv? [dd ddict?]) boolean?]
   @defproc[(ddict-eq? [dd ddict?]) boolean?]
 )]{
-@racket[hamt-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
-@racket[hamt-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
-@racket[hamt-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
+@racket[ddict-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
+@racket[ddict-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
+@racket[ddict-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
 }
 
 @deftogether[(
@@ -251,7 +251,7 @@ Returns the number of keys mapped by @racket[dd].
 }
 
 @defproc[(ddict-empty? [dd ddict?]) boolean?]{
-Returns @racket[#t] just in case @racket[(zero? (ddict-count hamt))] is @racket[#t], @racket[#f] otherwise.
+Returns @racket[#t] just in case @racket[(zero? (ddict-count dd))] is @racket[#t], @racket[#f] otherwise.
 }
 
 @defproc[(ddict-map [dd ddict?] [proc (any/c any/c . -> . any/c)]) (listof any/c)]{
@@ -265,16 +265,16 @@ Applies the procedure @racket[proc] to each key and associated value of @racket[
 }
 
 @defproc[(ddict->list [dd ddict?]) (listof (cons/c any/c any/c))]{
-Returns a list of the key--value pairs of @racket[hamt] in in LIFO order w.r.t. the order
+Returns a list of the key--value pairs of @racket[dd] in in LIFO order w.r.t. the order
 they were inserted into @racket[dd].
 }
 
-@defproc[(hamt-keys [dd ddict?]) (listof any/c)]{
+@defproc[(ddict-keys [dd ddict?]) (listof any/c)]{
 Returns a list of the keys in @racket[dd] in LIFO order w.r.t. the order
 they were inserted into @racket[dd].
 }
 
-@defproc[(hamt-values [dd ddict?]) (listof any/c)]{
+@defproc[(ddict-values [dd ddict?]) (listof any/c)]{
 Returns a list of the values in @racket[dd] in LIFO order w.r.t. the order
 their associated keys were inserted into @racket[dd].
 }
