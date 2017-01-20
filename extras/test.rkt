@@ -807,3 +807,50 @@
 (check-equal? (equal-hash-code (mutable-ddict 1 1 2 2 3 3))
               (equal-hash-code (mutable-ddict 3 3 1 1 2 2)))
 
+
+
+
+;; tests w/ concurrent threads operating on the
+;; same mutable-ddict
+(let*-values
+    ([(N) 100000]
+     [(mdd) (mutable-ddict)]
+     [(l1 l2 l3 l4)
+      (for/lists (l1 l2 l3 l4)
+        ([n (in-range 0 N 4)])
+        (values n (+ 1 n) (+ 2 n) (+ 3 n)))])
+  ;; concurrent ddict-set!, ddict-ref!,
+  ;;  ddict-update!, and ddict-remove!
+  (define t1 (thread (λ () (for ([n (in-list l1)])
+                             (ddict-set! mdd n n)))))
+  (define t2 (thread (λ () (for ([n (in-list l2)])
+                             (ddict-ref! mdd n n)))))
+  (define t3 (thread (λ () (for ([n (in-list l3)])
+                             (ddict-update! mdd n add1 (sub1 n))))))
+  (define t4 (thread (λ () (for ([n (in-list l4)])
+                             (ddict-set*! mdd n n)))))
+  (thread-wait t1)
+  (thread-wait t2)
+  (thread-wait t3)
+  (thread-wait t4)
+  (check-equal? (ddict-count mdd) N)
+  (for ([n (in-range N)])
+    (check-equal? (ddict-ref mdd n #f) n))
+  ;; concurrent ddict-remove!
+  (set! t1 (thread (λ () (for ([n (in-list l1)])
+                           (ddict-remove! mdd n)))))
+  (set! t2 (thread (λ () (for ([n (in-list l2)])
+                           (ddict-remove! mdd n)))))
+  (set! t3 (thread (λ () (for ([n (in-list l3)])
+                           (ddict-remove! mdd n)))))
+  (set! t4 (thread (λ () (for ([n (in-list l4)])
+                           (ddict-remove! mdd n)))))
+  (thread-wait t1)
+  (thread-wait t2)
+  (thread-wait t3)
+  (thread-wait t4)
+  (check-equal? (ddict-count mdd) 0)
+  (check-true (ddict-empty? mdd))
+  (check-equal? (ddict-keys mdd) '())
+  (check-equal? (ddict-values mdd) '()))
+

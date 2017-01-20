@@ -52,6 +52,7 @@
          ddict->list
          ddict-map
          ddict-for-each
+         ddict-keys-subset?
          in-ddict
          in-ddict-keys
          in-ddict-values
@@ -402,6 +403,19 @@
   [(iddict elems _ _) (hash-eq? elems)]
   [(mddict elems _ _) (hash-eq? elems)])
 
+
+(define/dd-match (immutable-ddict-elems+seq mdd)
+  [(iddict elems _ seq) (values elems seq)])
+
+(define/dd-match (mutable-ddict-elems mdd)
+  [(mddict elems _ _) elems])
+
+(define/dd-match (mutable-ddict-elems+seq mdd)
+  [(mddict elems _ seq) (values elems seq)])
+
+(define/dd-match (mutable-ddict-seq mdd)
+  [(mddict _ _ seq) seq])
+
 ;;
 ;; ddict-set
 ;;
@@ -472,14 +486,34 @@
 ;; ddict-set*
 ;;
 (define/dd-match (ddict-set* dd . args)
-  [(iddict elems del seq) (build-immutable-ddict 'ddict-set* elems del seq args)])
+  [(iddict elems del seq)
+   (build-immutable-ddict 'ddict-set* elems del seq args)])
 
 ;;
 ;; ddict-set*!
 ;;
-(define/dd-match (ddict-set*! mdd . args)
-  [(mddict elems del seq)
-   (add-to-mutable-dict! 'ddict-set*! mdd elems del seq args)])
+(define/dd-match (ddict-set*! mdd . initial-args)
+  [(mddict _ _ _)
+   (let loop ([args initial-args])
+     (cond
+       [(pair? args)
+        (define key (car args))
+        (define rst (cdr args))
+        (cond
+          [(pair? rst)
+           (define val (car rst))
+           (ddict-set! mdd key val)
+           (loop (cdr rst))]
+          [else
+           (raise-argument-error
+            'ddict-set*!
+            "an even number of arguments"
+            initial-args)])]
+       [(null? args) (void)]
+       [else (raise-argument-error
+              'ddict-set*!
+              "a list of keys and values"
+              initial-args)]))])
 
 (define-syntax-rule (too-fragmented? elems del)
   (>= del (hash-count elems)))
@@ -687,6 +721,45 @@
           #:unless (eq? *missing* val))
      (f key val))])
 
+(define-syntax-rule (unequal-hashes kind1 kind2)
+  (raise (make-exn:fail:contract
+          (format "ddict-keys-subset?: given ddicts do not use the same key comparison:\n ddict 1: ~a\n ddict 2: ~a"
+                  kind1 kind2)
+          (current-continuation-marks))))
+
+(define/dd-match (ddict-keys-subset? dd1 dd2)
+  [(iddict elems1 _ _)
+   (unless (immutable-ddict? dd2)
+     (raise-argument-error 'ddict-keys-subset?
+                           "immutable-ddict?"
+                           dd2))
+   (define elems2 (immutable-ddict-elems dd2))
+   (cond [(hash-equal? elems1)
+          (cond [(hash-eqv? elems2) (unequal-hashes "ddict" "ddicteqv")]
+                [(hash-eq? elems2) (unequal-hashes "ddict" "ddicteq")])]
+         [(hash-eqv? elems1)
+          (cond [(hash-equal? elems2) (unequal-hashes "ddicteqv" "ddict")]
+                [(hash-eq? elems2) (unequal-hashes "ddicteqv" "ddicteq")])]
+         [else
+          (cond [(hash-equal? elems2) (unequal-hashes "ddicteq" "ddict")]
+                [(hash-eqv? elems2) (unequal-hashes "ddicteq" "ddicteqv")])])
+   (hash-keys-subset? elems1 elems2)]
+  [(mddict elems1 _ _)
+   (unless (mutable-ddict? dd2)
+     (raise-argument-error 'ddict-keys-subset?
+                           "mutable-ddict?"
+                           dd2))
+   (define elems2 (mutable-ddict-elems dd2))
+   (cond [(hash-equal? elems1)
+          (cond [(hash-eqv? elems2) (unequal-hashes "mutable-ddict" "mutable-ddicteqv")]
+                [(hash-eq? elems2) (unequal-hashes "mutable-ddict" "mutable-ddicteq")])]
+         [(hash-eqv? elems1)
+          (cond [(hash-equal? elems2) (unequal-hashes "mutable-ddicteqv" "mutable-ddict")]
+                [(hash-eq? elems2) (unequal-hashes "mutable-ddicteqv" "mutable-ddicteq")])]
+         [else
+          (cond [(hash-equal? elems2) (unequal-hashes "mutable-ddicteq" "mutable-ddict")]
+                [(hash-eqv? elems2) (unequal-hashes "mutable-ddicteq" "mutable-ddicteqv")])])
+   (hash-keys-subset? elems1 elems2)])
 
 ;;
 ;; next-key/val
@@ -725,12 +798,16 @@
      (in-parallel keys vals)]
     [else (raise-argument-error name pred-str dd)]))
 
-(define get-elems+seq-for-in-ddict
-  (let ()
-    (define/dd-match (in-ddict dd)
-      [(iddict elems _ seq) (values elems seq)]
-      [(mddict elems _ seq) (values elems seq)])
-    in-ddict))
+(define-syntax-rule (get-elems+seq name dd-exp)
+  (let ([dd dd-exp])
+    (cond [(immutable-ddict? dd)
+           (immutable-ddict-elems+seq dd)]
+          [(mutable-ddict? dd)
+           (mutable-ddict-elems+seq dd)]
+          [else (raise-argument-error
+                 (quote name)
+                 "ddict?"
+                 dd)])))
 
 ;;
 ;; in-ddict
@@ -743,7 +820,7 @@
        #'[(key val)
           (:do-in
            ;; ([(outer-id ...) outer-expr] ...)
-           ([(elems seq) (get-elems+seq-for-in-ddict dd-exp)])
+           ([(elems seq) (get-elems+seq in-ddict dd-exp)])
            ;; outer-check
            #t
            ;; ([loop-id loop-expr] ...)
@@ -794,14 +871,6 @@
     [else (raise-argument-error name pred-str dd)]))
 
 
-(define get-elems+seq-for-in-ddict-keys
-  (let ()
-    (define/dd-match (in-ddict-keys dd)
-      [(iddict elems _ seq) (values elems seq)]
-      [(mddict elems _ seq) (values elems seq)])
-    in-ddict-keys))
-
-
 ;;
 ;; in-ddict-keys
 ;;
@@ -815,7 +884,7 @@
        #'[(key)
           (:do-in
            ;; ([(outer-id ...) outer-expr] ...)
-           ([(elems seq) (get-elems+seq-for-in-ddict-keys dd-exp)])
+           ([(elems seq) (get-elems+seq in-ddict-keys dd-exp)])
            ;; outer-check
            #t
            ;; ([loop-id loop-expr] ...)
@@ -884,7 +953,7 @@
        #'[(val)
           (:do-in
            ;; ([(outer-id ...) outer-expr] ...)
-           ([(elems seq) (get-elems+seq-for-in-ddict-vals dd-exp)])
+           ([(elems seq) (get-elems+seq in-ddict-values dd-exp)])
            ;; outer-check
            #t
            ;; ([loop-id loop-expr] ...)
