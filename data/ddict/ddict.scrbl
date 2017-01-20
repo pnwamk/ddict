@@ -63,32 +63,8 @@ lookup operations becomes unpredictable.
 
 
 
+@section{Constructors}
 
-@defproc[(ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is a @tech{ddict}, @racket[#f] otherwise.
-}
-
-@defproc[(immutable-ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is an @deftech{immutable-ddict}, @racket[#f] otherwise.
-}
-
-@defproc[(mutable-ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is a @deftech{mutable-ddict}, @racket[#f] otherwise.
-}
-
-
-@deftogether[(
-  @defproc[(ddict-equal? [dd ddict?]) boolean?]
-  @defproc[(ddict-eqv? [dd ddict?]) boolean?]
-  @defproc[(ddict-eq? [dd ddict?]) boolean?]
-)]{
-
- @racket[ddict-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
-
- @racket[ddict-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
-
- @racket[ddict-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
-}
 
 @deftogether[(
   @defproc[(ddict [key any/c] [val any/c] ... ...) (and/c immutable-ddict? ddict-equal?)]
@@ -125,6 +101,36 @@ ones if the @racket[key]s are equivalent w.r.t. the table's key comparison funct
 
 }
 
+@section{Basic Predicates}
+
+@defproc[(ddict? [v any/c]) boolean?]{
+Returns @racket[#t] if @racket[v] is a @tech{ddict}, @racket[#f] otherwise.
+}
+
+@defproc[(immutable-ddict? [v any/c]) boolean?]{
+Returns @racket[#t] if @racket[v] is an @deftech{immutable-ddict}, @racket[#f] otherwise.
+}
+
+@defproc[(mutable-ddict? [v any/c]) boolean?]{
+Returns @racket[#t] if @racket[v] is a @deftech{mutable-ddict}, @racket[#f] otherwise.
+}
+
+
+@deftogether[(
+  @defproc[(ddict-equal? [dd ddict?]) boolean?]
+  @defproc[(ddict-eqv? [dd ddict?]) boolean?]
+  @defproc[(ddict-eq? [dd ddict?]) boolean?]
+)]{
+
+ @racket[ddict-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
+
+ @racket[ddict-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
+
+ @racket[ddict-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
+}
+
+@section{Basic Operations}
+
 @defproc[(ddict-set [dd immutable-ddict?] [key any/c] [val any/c]) immutable-ddict?]{
  Functionally extends @racket[dd] by mapping @racket[key] to @racket[val], overwriting any existing mapping
  for @racket[key], and returning the extended @tech{ddict}.
@@ -137,20 +143,6 @@ ones if the @racket[key]s are equivalent w.r.t. the table's key comparison funct
  overwriting any existing mapping for @racket[key].
 
  @see-also-caveats[]
-}
-
-@defproc[(ddict-set* [dd immutable-ddict?] [key any/c] [val any/c] ... ...) immutable-ddict?]{
-Functionally extends @racket[dd] by mapping each @racket[key] to the following @racket[val], overwriting
-any existing mapping for each @racket[key], and returning the extended @tech{ddict}. Mappings are added to
-the table in the order they appear in the argument list, so later mappings can hide earlier ones if the 
-@racket[key]s are equivalent w.r.t. the table's key comparison function.
-}
-
-@defproc[(ddict-set*! [dd mutable-ddict?] [key any/c] [val any/c] ... ...) void?]{
-Extends @racket[dd] by mapping each @racket[key] to the following @racket[val], overwriting
-any existing mapping for each @racket[key], and returning the extended @tech{ddict}. Mappings are added to
-the table in the order they appear in the argument list, so later mappings can hide earlier ones if the 
-@racket[key]s are equivalent w.r.t. the table's key comparison function.
 }
 
 @defproc[(ddict-ref [dd ddict?]
@@ -172,6 +164,48 @@ Returns the value for @racket[key] in @racket[dd]. If no value is found for @rac
 
 @see-also-mutable-key-caveat[]
 }
+
+@defproc[(ddict-has-key? [dd ddict?] [key any/c]) boolean?]{
+Returns @racket[#t] if @racket[dd] contains a value for the given @racket[key], @racket[#f] otherwise.
+}
+
+@defproc[(ddict-remove [dd immutable-ddict?] [key any/c]) immutable-ddict?]{
+Functionally removes any existing mapping for @racket[key] in @racket[dd], returning the fresh @tech{ddict}.
+
+@see-also-mutable-key-caveat[]
+}
+
+@defproc[(ddict-remove! [dd mutable-ddict?] [key any/c]) void?]{
+Removes any existing mapping for @racket[key] in @racket[dd].
+
+@see-also-caveats[]
+}
+
+@defproc[(ddict-count [dd ddict?]) exact-nonnegative-integer?]{
+Returns the number of keys mapped by @racket[dd].
+}
+
+@defproc[(ddict-empty? [dd ddict?]) boolean?]{
+Returns @racket[#t] just in case @racket[(zero? (ddict-count dd))] is @racket[#t], @racket[#f] otherwise.
+}
+
+@section{Additional Operations}
+
+@defproc[(ddict-set* [dd immutable-ddict?] [key any/c] [val any/c] ... ...) immutable-ddict?]{
+Functionally extends @racket[dd] by mapping each @racket[key] to the following @racket[val], overwriting
+any existing mapping for each @racket[key], and returning the extended @tech{ddict}. Mappings are added to
+the table in the order they appear in the argument list, so later mappings can hide earlier ones if the 
+@racket[key]s are equivalent w.r.t. the table's key comparison function.
+}
+
+@defproc[(ddict-set*! [dd mutable-ddict?] [key any/c] [val any/c] ... ...) void?]{
+Extends @racket[dd] by mapping each @racket[key] to the following @racket[val], overwriting
+any existing mapping for each @racket[key], and returning the extended @tech{ddict}. Mappings are added to
+the table in the order they appear in the argument list, so later mappings can hide earlier ones if the 
+@racket[key]s are equivalent w.r.t. the table's key comparison function.
+}
+
+
 
 @defproc[(ddict-ref! [dd mutable-ddict?] [key any/c] [to-set any/c])
          any/c]{
@@ -217,23 +251,6 @@ no mapping exists for @racket[key] already.
 }
 
 
-@defproc[(ddict-has-key? [dd ddict?] [key any/c]) boolean?]{
-Returns @racket[#t] if @racket[dd] contains a value for the given @racket[key], @racket[#f] otherwise.
-}
-
-@defproc[(ddict-remove [dd immutable-ddict?] [key any/c]) immutable-ddict?]{
-Functionally removes any existing mapping for @racket[key] in @racket[dd], returning the fresh @tech{ddict}.
-
-@see-also-mutable-key-caveat[]
-}
-
-@defproc[(ddict-remove! [dd mutable-ddict?] [key any/c]) void?]{
-Removes any existing mapping for @racket[key] in @racket[dd].
-
-@see-also-caveats[]
-}
-
-
 @defproc[(ddict-clear! [dd mutable-ddict?])
          void?]{
 
@@ -259,13 +276,7 @@ Produces an empty @tech{ddict} with the same key-comparison
 procedure and mutability of @racket[dd].}
 
 
-@defproc[(ddict-count [dd ddict?]) exact-nonnegative-integer?]{
-Returns the number of keys mapped by @racket[dd].
-}
-
-@defproc[(ddict-empty? [dd ddict?]) boolean?]{
-Returns @racket[#t] just in case @racket[(zero? (ddict-count dd))] is @racket[#t], @racket[#f] otherwise.
-}
+@section{Traversal and Iteration Functions}
 
 @defproc[(ddict-map [dd ddict?] [proc (any/c any/c . -> . any/c)]) (listof any/c)]{
 Applies the procedure @racket[proc] to each key and associated value of @racket[dd] in LIFO order w.r.t. the order
