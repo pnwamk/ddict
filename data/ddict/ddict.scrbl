@@ -28,9 +28,10 @@ This package defines immutable and mutable @deftech{
  deterministic dictionaries} (or @deftech{ddict}s, for
 short). A @tech{ddict} is a
 @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
- dictionary} whose interface mimics that of
+ dictionary} whose interface mimics that of a
 @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
- hash table}s.
+ hash table} but which also guarantees LIFO ordering when iterating
+over the elements of the dictionary.
 
 
 @elemtag['(caveat "concurrency")]{@bold{Caveats concerning
@@ -83,9 +84,12 @@ Returns @racket[#t] if @racket[v] is a @deftech{mutable-ddict}, @racket[#f] othe
   @defproc[(ddict-eqv? [dd ddict?]) boolean?]
   @defproc[(ddict-eq? [dd ddict?]) boolean?]
 )]{
-@racket[ddict-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
-@racket[ddict-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
-@racket[ddict-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
+
+ @racket[ddict-equal?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[equal?], @racket[#f] otherwise.
+
+ @racket[ddict-eqv?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eqv?], @racket[#f] otherwise.
+
+ @racket[ddict-eq?] returns @racket[#t] if the given @tech{ddict}'s keys are compared with @racket[eq?], @racket[#f] otherwise.
 }
 
 @deftogether[(
