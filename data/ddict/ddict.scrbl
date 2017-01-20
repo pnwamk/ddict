@@ -247,7 +247,7 @@ Removes all mappings from @racket[dd] in constant time.
 @defproc[(ddict-clear [dd immutable-ddict?])
          immutable-ddict?]{
 
-Functionally removes all mappings from @racket[hash] in constant time.}
+Functionally removes all mappings from @racket[dd] in constant time.}
 
 @defproc[(ddict-copy [dd ddict?]) 
          mutable-ddict?]{

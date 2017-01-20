@@ -343,8 +343,9 @@
    (define val (ddict-ref mdd key *missing*))
    (cond
      [(eq? val *missing*)
-      (ddict-set! mdd key to-set)
-      to-set]
+      (let ([val (default to-set)])
+        (ddict-set! mdd key val)
+        val)]
      [else val])])
 
 
