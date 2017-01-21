@@ -6,6 +6,28 @@ This library provides a simple dictionary data type that resembles Racket's buil
 
 Functionality is intended to match Racket's built in `hash` in the user API and performance as much as possible, so that `ddict`'s can be a simple drop-in replacement for `hash`'s when determinstic ordering is desired.
 
+## Installation
+
+Preferred method:
+```
+raco pkg install ddict
+```
+
+or the alternate method:
+```
+raco pkg install git://github.com/pnwamk/ddict.git
+```
+
+## Usage
+
+```
+(require data/ddict)
+
+(define dd (ddict 0 'Sunday 1 'Monday ...))
+
+(ddict-ref dd '1) ;; ==> 'Monday
+```
+
 # API
 
 The API for these dictionaries is intended to be identical to the `hash` API as much as possible. The following identifiers are provided:
