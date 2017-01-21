@@ -1,6 +1,6 @@
 # Deterministic Dictionaries for Racket
 
-[![Build Status](https://travis-ci.org/pnwamk/racket-ddict.svg?branch=master)](https://travis-ci.org/pnwamk/racket-ddict)
+[![Build Status](https://travis-ci.org/pnwamk/ddict.svg?branch=master)](https://travis-ci.org/pnwamk/ddict)
 
 This library provides a simple dictionary data type that resembles Racket's built in `hash` data structure, except that it provides deterministic (LIFO) ordering for iteration and key/value lists.
 
