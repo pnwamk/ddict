@@ -138,30 +138,25 @@
 (define-syntax-rule (mutable-ddict-constructor name init-hash)
   (case-lambda
     [() (mddict init-hash 0 '())]
-    [args (define mdd (mddict init-hash 0 '()))
-          (add-to-mutable-dict! (quote name) mdd init-hash 0 '() args)
-          mdd]))
-
-(define (add-to-mutable-dict! name mdd elems del seq initial-args)
-  (let loop ([args initial-args]
-             [elems elems]
-             [seq seq])
-    (cond
-      [(pair? args)
+    [initial-args
+     (let loop ([args initial-args]
+                [elems init-hash]
+                [seq '()])
        (cond
-         [(pair? (cdr args))
-          (define key (car args))
-          (define val (cadr args))
-          (let-values ([(elems seq) (update-elems+seq elems seq key val)])
-            (loop (cddr args) elems seq))]
-         [else
-          (raise-argument-error
-           name
-           "an even number of arguments"
-           initial-args)])]
-      [(null? args) (unless (try-update-mddict-content! mdd elems del seq)
-                      (add-to-mutable-dict! name mdd elems del seq initial-args))]
-      [else (error name "impossible! you found a bug!")])))
+         [(pair? args)
+          (cond
+            [(pair? (cdr args))
+             (define key (car args))
+             (define val (cadr args))
+             (let-values ([(elems seq) (update-elems+seq elems seq key val)])
+               (loop (cddr args) elems seq))]
+            [else
+             (raise-argument-error
+              (quote name)
+              "an even number of arguments"
+              initial-args)])]
+         [(null? args) (mddict elems 0 seq)]
+         [else (error (quote name) "impossible! you found a bug!")]))]))
 
 (define mutable-ddict* (mutable-ddict-constructor mutable-ddict #hash()))
 (define mutable-ddicteqv* (mutable-ddict-constructor mutable-ddicteqv #hasheqv()))
@@ -840,13 +835,6 @@
     [(pred? dd) (ddict-values dd)]
     [else (raise-argument-error name pred-str dd)]))
 
-(define get-elems+seq-for-in-ddict-vals
-  (let ()
-    (define/dd-match (in-ddict-values dd)
-      [(iddict elems _ seq) (values elems seq)]
-      [(mddict elems _ seq) (values elems seq)])
-    in-ddict-values))
-
 ;;
 ;; in-ddict-values
 ;;
@@ -943,9 +931,9 @@
     (raise-argument-error 'ddict-iterate-next "ddict?" dd))
   (unless (and (ddict-position? pos) (eq? dd (ddict-position-dd pos)))
     (raise-argument-error 'ddict-iterate-next "valid ddict position for given ddict" pos))
-  (define seq (ddict-position-rst dd))
+  (define seq (ddict-position-rst pos))
   (define-values (key val rst) (next-key/val dd seq))
-  (and rst (ddict-position key val rst)))
+  (and rst (ddict-position dd key val rst)))
 
 ;;
 ;; ddict-iterate-key
@@ -1097,8 +1085,8 @@
   (unsafe-mk-mddict (box (content elems del seq))))
 
 (define (content-elems c) (vector-ref c 0))
-(define (content-del c) (vector-ref c 1))
-(define (content-seq c) (vector-ref c 2))
+;(define (content-del c) (vector-ref c 1))
+;(define (content-seq c) (vector-ref c 2))
 
 (define (ddict? x) (or (immutable-ddict? x) (mutable-ddict? x)))
 
