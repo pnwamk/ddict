@@ -20,7 +20,7 @@ raco pkg install git://github.com/pnwamk/ddict.git
 
 ## Usage
 
-```
+```racket
 (require data/ddict)
 
 (define dd (ddict 0 'Sunday 1 'Monday ...))
