@@ -13,10 +13,10 @@ before_install:
 
 install:
 - raco pkg install --auto git://github.com/pnwamk/ddict.git
-- git clone https://github.com/pnwamk/racket-ddict-test.git ~/ddict-test
+- git clone https://github.com/pnwamk/ddict.git ~/ddict
 
 script:
-- raco test ~/ddict-test/test.rkt
+- raco test ~/ddict/tests/data/ddict.rkt
 - echo "done"
 
 after_script:
