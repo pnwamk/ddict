@@ -134,7 +134,8 @@ ones if the @racket[key]s are equivalent w.r.t. the table's key comparison funct
 @section{Basic Predicates}
 
 @defproc[(ddict? [v any/c]) boolean?]{
-Returns @racket[#t] if @racket[v] is a @tech{ddict}, @racket[#f] otherwise.
+Returns @racket[#t] if @racket[v] is a @tech{ddict} (i.e. if it is either
+ a @tech{immutable-ddict} or a @tech{mutable-ddict}), @racket[#f] otherwise.
 }
 
 @defproc[(immutable-ddict? [v any/c]) boolean?]{
@@ -280,6 +281,11 @@ no mapping exists for @racket[key] already.
 @see-also-caveats[]
 }
 
+@defproc[(ddict-keys-subset? [dd1 ddict?] [dd2 ddict?])
+         boolean?]{
+
+Returns @racket[#t] if @racket[dd2] contains an entry for each
+        key present in @racket[dd1], otherwise returns @racket[#f].}
 
 @defproc[(ddict-clear! [dd mutable-ddict?])
          void?]{
@@ -333,6 +339,23 @@ Returns a list of the values in @racket[dd] in LIFO order w.r.t. the order
 their associated keys were inserted into @racket[dd].
 }
 
+
+@defproc[(ddict-position? [v any/c])
+         boolean?]{
+
+Returns @racket[#t] if @racket[v] is a position used for iterating over a ddict
+ , otherwise returns @racket[#f].}
+
+
+@deftogether[(
+  @defproc[(ddict-iterate-first [dd ddict?]) ddict-position?]
+  @defproc[(ddict-iterate-next [dd ddict?] [pos ddict-position?]) ddict-position?]
+  @defproc[(ddict-iterate-key [dd ddict?] [pos ddict-position?]) any/c]
+  @defproc[(ddict-iterate-value [dd ddict?] [pos ddict-position?]) any/c]
+  )]{
+
+ Functions which allow for the manual iteration over a ddict, in LIFO order w.r.t.
+ the insertion order of the keys.}
 
 
 @deftogether[(

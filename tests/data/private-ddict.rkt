@@ -3,7 +3,7 @@
 (require (for-syntax racket/base)
          rackunit
          racket/dict
-         "../../data/ddict.rkt")
+         "../../data/private/ddict.rkt")
 
 (define failsym (gensym 'fail))
 
@@ -17,7 +17,7 @@
 (check-true (ddict-eqv? dd5eqv))
 (define dd5eq (ddicteq 0 "0" 1 "1" 2 "2" 3 "3" 4 "4"))
 (check-true (ddict-eq? dd5eq))
-(check-exn #rx"ddict: contract violation"
+(check-exn #rx"ddict:.*expected: an even number of arguments"
            (λ () (ddict 0 "0" 1 "1" 2)))
 (define (empty-mdd) (mutable-ddict))
 (define (mdd5) (mutable-ddict 0 "0" 1 "1" 2 "2" 3 "3" 4 "4"))
@@ -26,7 +26,7 @@
 (check-true (ddict-eqv? (mdd5eqv)))
 (define (mdd5eq) (mutable-ddicteq 0 "0" 1 "1" 2 "2" 3 "3" 4 "4"))
 (check-true (ddict-eq? (mdd5eq)))
-(check-exn #rx"ddict: contract violation"
+(check-exn #rx"ddict:.*expected: an even number of arguments"
            (λ () (mutable-ddict 0 "0" 1 "1" 2)))
 
 ;; - - - - - - - - - - - -
@@ -64,7 +64,7 @@
 (check-false (ddict-equal? (mutable-ddicteqv)))
 (check-false (ddict-equal? (ddicteq)))
 (check-false (ddict-equal? (mutable-ddicteq)))
-(check-exn #rx"ddict-equal\\?: contract violation"
+(check-exn #rx"ddict-equal\\?:.*expected: ddict\\?"
            (λ () (ddict-equal? 42)))
 
 ;; - - - - - - - - - - - -
@@ -76,7 +76,7 @@
 (check-true (ddict-eqv? (mutable-ddicteqv)))
 (check-false (ddict-eqv? (ddicteq)))
 (check-false (ddict-eqv? (mutable-ddicteq)))
-(check-exn #rx"ddict-eqv\\?: contract violation"
+(check-exn #rx"ddict-eqv\\?:.*expected: ddict\\?"
            (λ () (ddict-eqv? 42)))
 
 ;; - - - - - - - - - - - -
@@ -88,7 +88,7 @@
 (check-false (ddict-eq? (mutable-ddicteqv)))
 (check-true (ddict-eq? (ddicteq)))
 (check-true (ddict-eq? (mutable-ddicteq)))
-(check-exn #rx"ddict-eq\\?: contract violation"
+(check-exn #rx"ddict-eq\\?:.*expected: ddict\\?"
            (λ () (ddict-eq? 42)))
 
 ;; - - - - - - - - - - - -
@@ -118,7 +118,7 @@
 (check-equal? (ddict-count (mdd5)) 5)
 (check-equal? (dict-count (empty-mdd)) 0)
 (check-equal? (dict-count (mdd5)) 5)
-(check-exn #rx"ddict-count: contract violation"
+(check-exn #rx"ddict-count:.*expected: ddict\\?"
            (λ () (ddict-count "not a ddict")))
 
 ;; - - - - - - - - - - - -
@@ -128,7 +128,11 @@
       [v (in-list '("4" "3" "2" "1" "0"))])
   (check-equal? (ddict-ref dd5 k) v)
   (check-equal? (dict-ref dd5 k) v))
+(check-exn #rx"ddict-ref: no value found for key"
+           (λ () (ddict-ref dd5 42)))
 (check-equal? (ddict-ref dd5 42 failsym) failsym)
+(check-exn #rx"ddict-ref:.*expected: ddict\\?"
+           (λ () (ddict-ref 42 42)))
 
 ;; - - - - - - - - - - - -
 ;; ddict-ref (mutable)
@@ -138,6 +142,8 @@
         [v (in-list '("4" "3" "2" "1" "0"))])
     (check-equal? (ddict-ref dd k) v)
     (check-equal? (dict-ref dd k) v))
+  (check-exn #rx"ddict-ref: no value found for key"
+             (λ () (ddict-ref dd 42)))
   (check-equal? (ddict-ref dd5 42 failsym) failsym))
 
 
@@ -151,9 +157,9 @@
                     (ddict-set dd k v)
                     (dict-set dd k v)))
               dd5)
-(check-exn #rx"ddict-set: contract violation"
+(check-exn #rx"ddict-set:.*expected: immutable-ddict\\?"
            (λ () (ddict-set 42 42 42)))
-(check-exn #rx"ddict-set: contract violation"
+(check-exn #rx"ddict-set:.*expected: immutable-ddict\\?"
            (λ () (ddict-set (mdd5) 42 42)))
 (let ([dd (for/fold ([dd dd5])
                     ([v (in-list '("4" "3" "2" "1" "0"))])
@@ -207,9 +213,9 @@
        [dd (dict-remove dd 0)]
        [_ (begin (check-equal? (ddict-count dd) 2)
                  (check-true (ddict-compact? dd)))])
-  (check-exn #rx"ddict-remove: contract violation"
+  (check-exn #rx"ddict-remove:.*expected: immutable-ddict\\?"
              (λ () (ddict-remove 42 42)))
-  (check-exn #rx"ddict-remove: contract violation"
+  (check-exn #rx"ddict-remove:.*expected: immutable-ddict\\?"
              (λ () (ddict-remove (mdd5) 42)))
   (check-equal? (ddict-keys dd) '(4 2))
   (check-equal? (ddict-values dd) '("4" "2"))
@@ -226,9 +232,9 @@
         (check-equal? (ddict-set! dd v v) (void))
         (check-equal? (dict-set! dd v v) (void))))
   (check-equal? (ddict-count dd) 10)
-  (check-exn #rx"ddict-set!: contract violation"
+  (check-exn #rx"ddict-set!:.*expected: mutable-ddict\\?"
              (λ () (ddict-set! 42 42 42)))
-  (check-exn #rx"ddict-set!: contract violation"
+  (check-exn #rx"ddict-set!:.*expected: mutable-ddict\\?"
              (λ () (ddict-set! dd5 42 42)))
   (for ([k (in-list '(4 3 2 1 0))]
         [v (in-list '("4" "3" "2" "1" "0"))])
@@ -286,9 +292,9 @@
   (ddict-remove! dd 4)
   (ddict-remove! dd 2)
   (check-true (ddict-empty? dd))
-  (check-exn #rx"ddict-remove!: contract violation"
+  (check-exn #rx"ddict-remove!:.*expected: mutable-ddict\\?"
              (λ () (ddict-remove! 42 42)))
-  (check-exn #rx"ddict-remove!: contract violation"
+  (check-exn #rx"ddict-remove!:.*expected: mutable-ddict\\?"
              (λ () (ddict-remove! dd5 42))))
 
 
@@ -299,7 +305,7 @@
 (check-equal? (ddict-keys dd5) '(4 3 2 1 0))
 (check-equal? (ddict-keys (empty-mdd)) '())
 (check-equal? (ddict-keys (mdd5)) '(4 3 2 1 0))
-(check-exn #rx"ddict-keys: contract violation"
+(check-exn #rx"ddict-keys:.*expected: ddict\\?"
            (λ () (ddict-keys 42)))
 
 ;; - - - - - - - - - - - -
@@ -309,7 +315,7 @@
 (check-equal? (ddict-values dd5) '("4" "3" "2" "1" "0"))
 (check-equal? (ddict-values (empty-mdd)) '())
 (check-equal? (ddict-values (mdd5)) '("4" "3" "2" "1" "0"))
-(check-exn #rx"ddict-values: contract violation"
+(check-exn #rx"ddict-values:.*expected: ddict\\?"
            (λ () (ddict-values 42)))
 
 ;; - - - - - - - - - - - -
@@ -319,7 +325,7 @@
 (check-equal? (ddict->list dd5) (map cons '(4 3 2 1 0) '("4" "3" "2" "1" "0")))
 (check-equal? (ddict->list (empty-mdd)) '())
 (check-equal? (ddict->list (mdd5)) (map cons '(4 3 2 1 0) '("4" "3" "2" "1" "0")))
-(check-exn #rx"ddict->list: contract violation"
+(check-exn #rx"ddict->list:.*expected: ddict\\?"
            (λ () (ddict->list 42)))
 
 ;; - - - - - - - - - - - -
@@ -337,9 +343,9 @@
   (check-equal? (ddict->list dd) (map cons
                                       '(6 5 4 3 2 1 0)
                                       '("6" "5" "4" "3" "2" "1" "0"))))
-(check-exn #rx"ddict-ref!: contract violation"
+(check-exn #rx"ddict-ref!:.*expected: mutable-ddict\\?"
            (λ () (ddict-ref! 42 42 42)))
-(check-exn #rx"ddict-ref!: contract violation"
+(check-exn #rx"ddict-ref!:.*expected: mutable-ddict\\?"
            (λ () (ddict-ref! dd5 42 42)))
 
 ;; - - - - - - - - - - - -
@@ -351,7 +357,7 @@
 (check-equal? (ddict-has-key? (empty-mdd) #t) #f)
 (check-equal? (ddict-has-key? (mdd5) 0) #t)
 (check-equal? (ddict-has-key? (mdd5) 5) #f)
-(check-exn #rx"ddict-has-key\\?: contract violation"
+(check-exn #rx"ddict-has-key\\?:.*expected: ddict\\?"
            (λ () (ddict-has-key? 42 42)))
 
 
@@ -362,7 +368,7 @@
 (check-false (ddict-empty? dd5))
 (check-true (ddict-empty? (empty-mdd)))
 (check-false (ddict-empty? (mdd5)))
-(check-exn #rx"ddict-empty\\?: contract violation"
+(check-exn #rx"ddict-empty\\?:.*expected: ddict\\?"
            (λ () (ddict-empty? 42)))
 
 
@@ -401,8 +407,8 @@
   (syntax-case stx ()
     [(_ make comparison-pred? pred?)
      (syntax/loc stx
-       (let ([_1 (check-exn #rx"contract violation" (λ () (make 42)))]
-             [_2 (check-exn #rx"contract violation" (λ () (make '((1 . 2) (3 . 4) . (5 . 6)))))]
+       (let ([_1 (check-exn #rx"expected: \\(listof pair\\?\\)" (λ () (make 42)))]
+             [_2 (check-exn #rx"expected: \\(listof pair\\?\\)" (λ () (make '((1 . 2) (3 . 4) . (5 . 6)))))]
              [mt (make '())]
              [dd (make '((1 . "1") (2 . "2") (3 . "3") (3 . "3")))])
          (check-true (pred? mt))
@@ -441,11 +447,11 @@
               '(42 4 3 2 1 0))
 (check-equal? (ddict-set* empty-dd 0 "0" 1 "1" 0 0 1 1)
               (ddict 0 0 1 1))
-(check-exn #rx"ddict-set\\*: contract violation"
+(check-exn #rx"ddict-set\\*:.*expected: immutable-ddict\\?"
            (λ () (ddict-set* 42)))
-(check-exn #rx"ddict-set\\*: contract violation"
+(check-exn #rx"ddict-set\\*:.*expected: immutable-ddict\\?"
            (λ () (ddict-set* (mdd5))))
-(check-exn #rx"ddict-set\\*: contract violation"
+(check-exn #rx"ddict-set\\*:.*expected: an even number of arguments"
            (λ () (ddict-set* empty-dd 1 1 2 2 3)))
 
 ;; - - - - - - - - - - - -
@@ -466,29 +472,37 @@
   (ddict-set*! dd 42 42 43 43)
   (check-equal? (ddict-keys dd) '(43 42 4 3 2 1 0))
   (check-equal? (ddict-values dd) '(43 42 4 3 2 1 0)))
-(check-exn #rx"ddict-set\\*!: contract violation"
+(check-exn #rx"ddict-set\\*!:.*expected: mutable-ddict\\?"
            (λ () (ddict-set*! 42)))
-(check-exn #rx"ddict-set\\*!: contract violation"
+(check-exn #rx"ddict-set\\*!:.*expected: mutable-ddict\\?"
            (λ () (ddict-set*! dd5)))
-(check-exn #rx"ddict-set\\*!: contract violation"
+(check-exn #rx"ddict-set\\*!:.*expected: an even number of arguments"
            (λ () (ddict-set*! (empty-mdd) 1 1 2 2 3)))
 
 ;; - - - - - - - - - - - -
 ;; ddict-update
 ;; - - - - - - - - - - - -
+(check-exn #rx"ddict-update: no value found for key"
+           (λ () (ddict-update empty-dd 42 add1)))
+(check-exn #rx"ddict-update: no value found for key"
+           (λ () (ddict-update dd5 42 add1)))
 (check-equal? (ddict-update (ddict 42 41) 42 add1) (ddict 42 42))
 (let ([dd (ddict-update (ddict-update (ddict 42 41) 42 add1)
                         41 add1 40)])
   (check-equal? (ddict-keys dd) '(41 42)))
 (check-equal? (ddict-update empty-dd 42 add1 41) (ddict 42 42))
-(check-exn #rx"ddict-update: contract violation"
+(check-exn #rx"ddict-update:.*expected: immutable-ddict\\?"
            (λ () (ddict-update 42 42 add1)))
-(check-exn #rx"ddict-update: contract violation"
+(check-exn #rx"ddict-update:.*expected: \\(any/c . -> . any/c\\)"
            (λ () (ddict-update (ddict 42 41) 42 42)))
 
 ;; - - - - - - - - - - - -
 ;; ddict-update!
 ;; - - - - - - - - - - - -
+(check-exn #rx"ddict-update!: no value found for key"
+           (λ () (ddict-update! (empty-mdd) 42 add1)))
+(check-exn #rx"ddict-update!: no value found for key"
+           (λ () (ddict-update! (mdd5) 42 add1)))
 (let ([dd (mutable-ddict 42 41)])
   (check-equal? (ddict-ref dd 42) 41)
   (check-equal? (ddict-update! dd 42 add1) (void))
@@ -501,9 +515,9 @@
   (check-equal? (ddict-count dd) 2)
   (check-equal? dd (mutable-ddict 41 41 42 42))
   (check-equal? (ddict-keys dd) '(41 42))
-  (check-exn #rx"ddict-update!: contract violation"
+  (check-exn #rx"ddict-update!:.*expected: mutable-ddict\\?"
              (λ () (ddict-update! 42 42 add1)))
-  (check-exn #rx"ddict-update!: contract violation"
+  (check-exn #rx"ddict-update!:.*expected: \\(any/c . -> . any/c\\)"
              (λ () (ddict-update! (mutable-ddict 42 41) 42 42))))
 
 ;; - - - - - - - - - - - -
@@ -544,9 +558,9 @@
   (check-true (ddict-empty? dd))
   (check-true (ddict-eq? dd))
   (check-true (mutable-ddict? dd)))
-(check-exn #rx"ddict-clear!: contract violation"
+(check-exn #rx"ddict-clear!:.*expected: mutable-ddict\\?"
            (λ () (ddict-clear! 42)))
-(check-exn #rx"ddict-clear!: contract violation"
+(check-exn #rx"ddict-clear!:.*expected: mutable-ddict\\?"
            (λ () (ddict-clear! dd5)))
 
 ;; - - - - - - - - - - - -
@@ -562,7 +576,7 @@
   (check-false (eq? dd1 dd2))
   (ddict-remove! dd1 1)
   (check-false (equal? dd1 dd2)))
-(check-exn #rx"ddict-copy: contract violation"
+(check-exn #rx"ddict-copy:.*expected: mutable-ddict\\?"
            (λ () (ddict-copy dd5)))
 
 ;; - - - - - - - - - - - -
@@ -604,7 +618,11 @@
 (define (immutable-ddict-tests dd other-dd1 other-dd2)
   (check-true (ddict-keys-subset? dd dd))
   (check-true (ddict-keys-subset? (ddict-remove dd 0) dd))
-  (check-false (ddict-keys-subset? dd (ddict-remove dd 0))))
+  (check-false (ddict-keys-subset? dd (ddict-remove dd 0)))
+  (check-exn #rx"ddict-keys-subset\\?:.*given ddicts do not use the same key comparison"
+             (λ () (ddict-keys-subset? dd other-dd1)))
+  (check-exn #rx"ddict-keys-subset\\?:.*given ddicts do not use the same key comparison"
+             (λ () (ddict-keys-subset? dd other-dd2))))
 
 (immutable-ddict-tests dd5 dd5eqv dd5eq)
 (immutable-ddict-tests dd5eqv dd5eq dd5)
@@ -618,7 +636,11 @@
   (check-true (ddict-keys-subset? dd1 dd2))
   (ddict-remove! dd1 0)
   (check-true (ddict-keys-subset? dd1 dd2))
-  (check-false (ddict-keys-subset? dd2 dd1)))
+  (check-false (ddict-keys-subset? dd2 dd1))
+  (check-exn #rx"ddict-keys-subset\\?:.*given ddicts do not use the same key comparison"
+             (λ () (ddict-keys-subset? dd1 other-dd1)))
+  (check-exn #rx"ddict-keys-subset\\?:.*given ddicts do not use the same key comparison"
+             (λ () (ddict-keys-subset? dd2 other-dd2))))
 
 (mutable-ddict-tests mdd5 mdd5eqv mdd5eq)
 (mutable-ddict-tests mdd5eqv mdd5eq mdd5)
@@ -660,11 +682,11 @@
                                         (2 . "2")
                                         (1 . "1")
                                         (0 . "0")))
-(check-exn #rx"ddict-map: contract violation"
+(check-exn #rx"ddict-map:.*expected: ddict\\?"
            (λ () (ddict-map 42 cons)))
-(check-exn #rx"ddict-map: contract violation"
+(check-exn #rx"ddict-map:.*expected: \\(any/c any/c . -> . any/c\\)"
            (λ () (ddict-map dd5 42)))
-(check-exn #rx"ddict-map: contract violation"
+(check-exn #rx"ddict-map:.*expected: \\(any/c any/c . -> . any/c\\)"
            (λ () (ddict-map dd5 add1)))
 
 ;; - - - - - - - - - - - -
@@ -678,11 +700,11 @@
        [add1! (λ _ (set-box! b (add1 (unbox b))))])
   (check-equal? (ddict-for-each (mdd5) add1!) (void))
   (check-equal? (unbox b) 5))
-(check-exn #rx"ddict-for-each: contract violation"
+(check-exn #rx"ddict-for-each:.*expected: ddict\\?"
            (λ () (ddict-for-each 42 cons)))
-(check-exn #rx"ddict-for-each: contract violation"
+(check-exn #rx"ddict-for-each:.*expected: \\(any/c any/c . -> . any/c\\)"
            (λ () (ddict-for-each dd5 42)))
-(check-exn #rx"ddict-for-each: contract violation"
+(check-exn #rx"ddict-for-each:.*expected: \\(any/c any/c . -> . any/c\\)"
            (λ () (ddict-for-each dd5 add1)))
 
 ;in-ddict // in-dict
@@ -707,11 +729,11 @@
 (check-equal? (for/list ([(k v) ((λ () (in-ddict dd5)))])
                 (cons k v))
               (ddict->list dd5))
-(check-exn #rx"in-ddict: contract violation"
+(check-exn #rx"in-ddict:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([(k v) (in-ddict "foo")])
                                  (cons k v))
                                (ddict->list dd5))))
-(check-exn #rx"in-ddict: contract violation"
+(check-exn #rx"in-ddict:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([(k v) ((λ () (in-ddict "foo")))])
                                  (cons k v))
                                (ddict->list dd5))))
@@ -738,11 +760,11 @@
 (check-equal? (for/list ([k ((λ () (in-ddict-keys dd5)))])
                 k)
               (ddict-keys dd5))
-(check-exn #rx"in-ddict-keys: contract violation"
+(check-exn #rx"in-ddict-keys:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([k (in-ddict-keys '())])
                                  k)
                                (ddict->list dd5))))
-(check-exn #rx"in-ddict-keys: contract violation"
+(check-exn #rx"in-ddict-keys:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([k ((λ () (in-ddict-keys '())))])
                                  k)
                                (ddict->list dd5))))
@@ -770,11 +792,11 @@
 (check-equal? (for/list ([v ((λ () (in-ddict-values dd5)))])
                 v)
               (ddict-values dd5))
-(check-exn #rx"in-ddict-values: contract violation"
+(check-exn #rx"in-ddict-values:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([v (in-ddict-values '())])
                                  v)
                                (ddict->list dd5))))
-(check-exn #rx"in-ddict-values: contract violation"
+(check-exn #rx"in-ddict-values:.*expected: ddict\\?"
            (λ () (check-equal? (for/list ([v ((λ () (in-ddict-values '())))])
                                  v)
                                (ddict->list dd5))))
