@@ -871,7 +871,7 @@
 (define-syntax-rule (define-for-ddict for-name for/derived mk empty-hash)
   (define-syntax (for-name stx)
     (syntax-case stx ()
-      [(_ clauses . defs+exprs)
+      [(_ clauses body (... ...) tail-expr)
        (with-syntax ([original stx])
          (syntax/loc stx
            (let-values
@@ -880,7 +880,8 @@
                    ([elems empty-hash]
                     [seq '()])
                    clauses
-                   (let-values ([(key val) (let () . defs+exprs)])
+                   body (... ...)
+                   (let-values ([(key val) tail-expr])
                      (update-elems+seq elems seq key val)))])
              (mk elems 0 seq))))])))
 

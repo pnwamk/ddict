@@ -781,87 +781,50 @@
 
 
 
+(define-syntax-rule (for-tests for expected)
+  (begin (check-equal? (for ([n (in-range 5)])
+                         (values n (number->string n)))
+                       expected)
+         (check-equal? (for ([n (in-range 5)])
+                         #:break (> n 4)
+                         (values n (number->string n)))
+                       expected)
+         (check-equal? (for ([n (in-range 10)])
+                         (values (modulo n 5)
+                                 (number->string (modulo n 5))))
+                       expected)))
 
-;for/ddict
-(check-equal? (for/ddict ([n (in-range 5)])
-                (values n (number->string n)))
-              dd5)
-(check-equal? (for/ddict ([n (in-range 10)])
-                (values (modulo n 5)
-                        (number->string (modulo n 5))))
-              dd5)
-;for/ddicteqv
-(check-equal? (for/ddicteqv ([n (in-range 5)])
-                (values n (number->string n)))
-              dd5eqv)
+(for-tests for/ddict dd5)
+(for-tests for/ddicteqv dd5eqv)
+(for-tests for/ddicteq dd5eq)
+(for-tests for/mutable-ddict (mdd5))
+(for-tests for/mutable-ddicteqv (mdd5eqv))
+(for-tests for/mutable-ddicteq (mdd5eq))
 
-;for/ddicteq
-(check-equal? (for/ddicteq ([n (in-range 5)])
-                (values n (number->string n)))
-              dd5eq)
-;for*/ddict
-(check-equal? (for*/ddict ([n (in-range 5)]
-                           [n (in-value n)])
-                (values n (number->string n)))
-              dd5)
-(check-equal? (for*/ddict ([n (in-range 10)]
-                           [n (in-value n)])
-                (values (modulo n 5)
-                        (number->string (modulo n 5))))
-              dd5)
-
-;for*/ddicteqv
-(check-equal? (for*/ddicteqv ([n (in-range 5)]
+(define-syntax-rule (for*-tests for* expected)
+  (begin (check-equal? (for* ([n (in-range 5)]
                               [n (in-value n)])
-                (values n (number->string n)))
-              dd5eqv)
-;for*/ddicteq
-(check-equal? (for*/ddicteq ([n (in-range 5)]
-                             [n (in-value n)])
-                (values n (number->string n)))
-              dd5eq)
+                         (values n (number->string n)))
+                       expected)
+         (check-equal? (for* ([n (in-range 5)]
+                              [n (in-value n)])
+                         #:break (> n 4)
+                         (values n (number->string n)))
+                       expected)
+         (check-equal? (for* ([n (in-range 10)]
+                              [n (in-value n)])
+                         (values (modulo n 5)
+                                 (number->string (modulo n 5))))
+                       expected)))
 
-;for/mutable-ddict
-(check-equal? (for/mutable-ddict ([n (in-range 5)])
-                (values n (number->string n)))
-              (mdd5))
-(check-equal? (for/mutable-ddict ([n (in-range 10)])
-                (values (modulo n 5)
-                        (number->string (modulo n 5))))
-              (mdd5))
+(for*-tests for*/ddict dd5)
+(for*-tests for*/ddicteqv dd5eqv)
+(for*-tests for*/ddicteq dd5eq)
+(for*-tests for*/mutable-ddict (mdd5))
+(for*-tests for*/mutable-ddicteqv (mdd5eqv))
+(for*-tests for*/mutable-ddicteq (mdd5eq))
 
-;for/mutable-ddicteqv
-(check-equal? (for/mutable-ddicteqv ([n (in-range 5)])
-                (values n (number->string n)))
-              (mdd5eqv))
 
-;for/mutable-ddicteq
-(check-equal? (for/mutable-ddicteq ([n (in-range 5)])
-                (values n (number->string n)))
-              (mdd5eq))
-
-;for*/mutable-ddict
-(check-equal? (for*/mutable-ddict ([n (in-range 5)]
-                                   [n (in-value n)])
-                (values n (number->string n)))
-              (mdd5))
-(check-equal? (for*/mutable-ddict ([n (in-range 10)]
-                                   [n (in-value n)])
-                (values (modulo n 5)
-                        (number->string (modulo n 5))))
-              (mdd5))
-
-;for*/mutable-ddicteqv
-(check-equal? (for*/mutable-ddicteqv ([n (in-range 5)]
-                                      [n (in-value n)])
-                (values n (number->string n)))
-              (mdd5eqv))
-
-;for*/mutable-ddicteq
-(check-equal? (for*/mutable-ddicteq ([n (in-range 5)]
-                                     [n (in-value n)])
-                (values n (number->string n)))
-              (mdd5eq))
 
 ;; printing
 (check-equal? (format "~a" dd5)
