@@ -33,7 +33,8 @@ This package defines immutable and mutable @deftech{
  deterministic dictionaries} (or @deftech{ddict}s, for
 short). A @tech{ddict} is a
 @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
- dictionary} whose interface mimics that of a
+ dictionary} (i.e. it implements the generic interface
+@racket[gen:dict]) whose API mimics that of a
 @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{
  hash table} but which also guarantees LIFO ordering when iterating
 over the elements of the dictionary.
