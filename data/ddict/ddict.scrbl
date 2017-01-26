@@ -402,12 +402,13 @@ internally use Racket's immutable @racket[hash] data
 structure along with a @racket[list] of keys in order to
 provide @racket[hash]-like performance and a deterministic
 iteration order. @tech{ddict} operations obviously have
-overhead which the native hash operations do not, but in
-micro benchmarks @tech{ddict} operations appear no worse
-than 2x their equivalent hash operation, and as the size of
-a dictionary increases the overhead becomes less noticeable
-(i.e. since the overhead is constant for the atomic @tech{
- ddict} operations the asymptotic complexity is unaffected).
+overhead which the native hash operations do not, but as a
+dictionary increases in size the overhead should become less
+noticeable (i.e. the overhead is constant for the atomic
+@tech{ddict} operations so the asymptotic complexity is
+unaffected). To determine if this overhead is acceptable you
+should of course perform your own application-specific
+benchmarks.
 
 @bold{Memory Usage.} In order to keep @tech{ddict}
 operations such as @racket[ddict-remove] efficient (i.e.

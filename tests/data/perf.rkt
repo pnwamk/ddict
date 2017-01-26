@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require data/ddict
+(require "../../data/ddict.rkt"
          racket/syntax
          (for-syntax racket/base))
 
