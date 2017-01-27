@@ -40,12 +40,12 @@
                          (and/c mutable-ddict? ddict-eqv?))]
   [mutable-ddicteq (->* () #:rest (and/c list? (λ (l) (even? (length l))))
                         (and/c mutable-ddict? ddict-eq?))]
-  [make-ddict (-> (listof pair?) (and/c immutable-ddict? ddict-equal?))]
-  [make-ddicteqv (-> (listof pair?) (and/c immutable-ddict? ddict-eqv?))]
-  [make-ddicteq (-> (listof pair?) (and/c immutable-ddict? ddict-eq?))]
-  [make-mutable-ddict (-> (listof pair?) (and/c mutable-ddict? ddict-equal?))]
-  [make-mutable-ddicteqv (-> (listof pair?) (and/c mutable-ddict? ddict-eqv?))]
-  [make-mutable-ddicteq (-> (listof pair?) (and/c mutable-ddict? ddict-eq?))]
+  [make-ddict (->* () ((listof pair?)) (and/c immutable-ddict? ddict-equal?))]
+  [make-ddicteqv (->* () ((listof pair?)) (and/c immutable-ddict? ddict-eqv?))]
+  [make-ddicteq (->* () ((listof pair?)) (and/c immutable-ddict? ddict-eq?))]
+  [make-mutable-ddict (->* () ((listof pair?)) (and/c mutable-ddict? ddict-equal?))]
+  [make-mutable-ddicteqv (->* () ((listof pair?)) (and/c mutable-ddict? ddict-eqv?))]
+  [make-mutable-ddicteq (->* () ((listof pair?)) (and/c mutable-ddict? ddict-eq?))]
   [ddict-set (-> immutable-ddict? any/c any/c immutable-ddict?)]
   [ddict-set* (->* (immutable-ddict?) #:rest (and/c list? (λ (l) (even? (length l))))
                    immutable-ddict?)]

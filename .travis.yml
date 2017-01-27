@@ -17,7 +17,6 @@ install:
 
 script:
 - raco test ~/ddict/tests/data/ddict.rkt
-- raco test ~/ddict/tests/data/private-ddict.rkt
 - echo "done"
 
 after_script:

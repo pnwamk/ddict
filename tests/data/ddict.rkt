@@ -403,7 +403,7 @@
      (syntax/loc stx
        (let ([_1 (check-exn #rx"contract violation" (λ () (make 42)))]
              [_2 (check-exn #rx"contract violation" (λ () (make '((1 . 2) (3 . 4) . (5 . 6)))))]
-             [mt (make '())]
+             [mt (make)]
              [dd (make '((1 . "1") (2 . "2") (3 . "3") (3 . "3")))])
          (check-true (pred? mt))
          (check-true (comparison-pred? mt))

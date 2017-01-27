@@ -164,7 +164,7 @@
 
 ;; "make-" constructor template for immutable ddicts
 (define-syntax-rule (make-ddict/template name init-hash)
-  (λ (initial-alist)
+  (λ ([initial-alist '()])
     (let loop ([alist initial-alist]
                [elems init-hash]
                [seq '()])
@@ -190,7 +190,7 @@
 
 ;; "make-" constructor template for mutable ddicts
 (define-syntax-rule (make-mutable-ddict/template name init-hash)
-  (λ (initial-alist)
+  (λ ([initial-alist '()])
     (let loop ([alist initial-alist]
                [elems init-hash]
                [seq '()])
