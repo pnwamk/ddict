@@ -17,6 +17,7 @@ install:
 
 script:
 - raco test ~/ddict/tests/data/ddict.rkt
+- racket ~/ddict/tests/data/ddict-perf.rkt
 - echo "done"
 
 after_script:
